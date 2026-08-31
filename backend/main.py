@@ -169,11 +169,13 @@ def speakify(text: str) -> str:
 
 
 async def tts_speak(text: str, voice: str = "pt-BR-ThalitaNeural"):
-    """Generate speech via edge-tts (native BR voice, free). Fallback to OpenAI."""
+    """TTS pipeline: edge-tts pt-BR (grátis, sotaque BR nativo) → ElevenLabs (opt-in) → OpenAI.
+    ElevenLabs só é usado se ELEVENLABS_ENABLED=1 no .env (evita gastar créditos e sotaque PT-PT)."""
     text = speakify(text)
+
+    # 1) edge-tts (Microsoft Thalita — PT-BR NATIVO, grátis)
     try:
         import edge_tts
-        # Add a slight speed boost to sound more natural / energetic
         communicate = edge_tts.Communicate(text, voice, rate="+5%")
         audio = b""
         async for chunk in communicate.stream():
@@ -184,7 +186,44 @@ async def tts_speak(text: str, voice: str = "pt-BR-ThalitaNeural"):
     except Exception as e:
         print(f"edge-tts error: {e}")
 
-    # Fallback to OpenAI
+    # 2) ElevenLabs (só se explicitamente habilitado — gasta créditos)
+    el_key = os.getenv("ELEVENLABS_API_KEY", "").strip()
+    if el_key and os.getenv("ELEVENLABS_ENABLED", "0") == "1":
+        try:
+            import urllib.request as _u
+            import urllib.error as _ue
+            voice_id = os.getenv("ELEVENLABS_VOICE_ID", "EXAVITQu4vr4xnSDxMaL").strip()
+            model_id = os.getenv("ELEVENLABS_MODEL_ID", "eleven_multilingual_v2").strip()
+            body = json.dumps({
+                "text": text,
+                "model_id": model_id,
+                "voice_settings": {
+                    "stability": 0.45,
+                    "similarity_boost": 0.75,
+                    "style": 0.35,
+                    "use_speaker_boost": True,
+                },
+            }).encode()
+            req = _u.Request(
+                f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}?output_format=mp3_44100_64",
+                data=body,
+                method="POST",
+                headers={
+                    "xi-api-key": el_key,
+                    "Content-Type": "application/json",
+                    "Accept": "audio/mpeg",
+                },
+            )
+            with _u.urlopen(req, timeout=25) as r:
+                audio = r.read()
+            if audio:
+                return audio
+        except _ue.HTTPError as e:
+            print(f"ElevenLabs HTTP {e.code}: {e.read()[:200]!r}")
+        except Exception as e:
+            print(f"ElevenLabs error: {e}")
+
+    # 3) OpenAI TTS
     if OPENAI_API_KEY:
         try:
             import openai
@@ -1323,6 +1362,53 @@ async def reset_session(payload: dict):
     if sid in sessions:
         del sessions[sid]
     return {"ok": True}
+
+
+# ============ HeyGen Streaming Avatar (proxy que esconde a API key) ============
+import urllib.request as _urlreq
+import urllib.error as _urlerr
+
+@app.post("/api/heygen/token")
+async def heygen_token():
+    """Cria access token de sessão do HeyGen (curta duração). Frontend usa esse
+    token pra abrir a sessão de streaming. API key nunca sai do backend."""
+    api_key = os.getenv("HEYGEN_API_KEY", "").strip()
+    if not api_key:
+        return {"error": "HEYGEN_API_KEY não configurada no .env"}
+    try:
+        req = _urlreq.Request(
+            "https://api.heygen.com/v1/streaming.create_token",
+            method="POST",
+            headers={"x-api-key": api_key, "Content-Type": "application/json"},
+            data=b"{}",
+        )
+        with _urlreq.urlopen(req, timeout=15) as r:
+            body = json.loads(r.read().decode())
+        token = (body.get("data") or {}).get("token") or body.get("token")
+        if not token:
+            return {"error": "resposta sem token", "raw": body}
+        return {"token": token}
+    except _urlerr.HTTPError as e:
+        return {"error": f"HTTP {e.code}", "detail": e.read().decode(errors='ignore')[:400]}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@app.get("/api/heygen/avatars")
+async def heygen_avatars():
+    """Lista avatares interativos disponíveis pra sessão de streaming."""
+    api_key = os.getenv("HEYGEN_API_KEY", "").strip()
+    if not api_key:
+        return {"error": "HEYGEN_API_KEY não configurada"}
+    try:
+        req = _urlreq.Request(
+            "https://api.heygen.com/v1/streaming/avatar.list",
+            headers={"x-api-key": api_key},
+        )
+        with _urlreq.urlopen(req, timeout=15) as r:
+            return json.loads(r.read().decode())
+    except Exception as e:
+        return {"error": str(e)}
 
 
 # WebSocket for live processing

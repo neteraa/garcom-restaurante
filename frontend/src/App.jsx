@@ -4,6 +4,45 @@ import { Mic, Volume2, Flame, Clock, CheckCircle2 } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import GabiAvatar from './components/GabiAvatar'
 
+// Avatar AUTO-DETECT (prioridade): vídeo real > foto real > SVG
+// - Vídeo:  frontend/public/videos/human/idle.mp4 existe → usa clipes
+// - Foto:   frontend/public/avatars/attendant.jpg existe → foto + boca animada
+// - SVG:    fallback garantido
+// Forçar manualmente: ?2d=1 (svg) · ?photo=1 · ?video=1
+const AvatarPhoto = React.lazy(() => import('./components/AvatarPhoto'))
+const AvatarVideo = React.lazy(() => import('./components/AvatarVideo'))
+
+function useAvatarMode() {
+  const [mode, setMode] = React.useState(() => {
+    try {
+      const q = new URLSearchParams(window.location.search)
+      if (q.get('2d') === '1') return 'svg'
+      if (q.get('photo') === '1') return 'photo'
+      if (q.get('video') === '1') return 'video'
+      return null  // auto-detect
+    } catch { return 'svg' }
+  })
+  React.useEffect(() => {
+    if (mode !== null) return
+    // Auto-detect: video > photo > svg
+    // NOTA: Vite dev server responde 200+index.html pra arquivos inexistentes (SPA fallback),
+    // então além de r.ok é preciso validar o content-type real do asset.
+    const isReal = (r, type) => r.ok && (r.headers.get('content-type') || '').startsWith(type)
+    fetch('/videos/human/idle.mp4', { method: 'HEAD' })
+      .then(r => {
+        if (isReal(r, 'video')) { setMode('video'); return null }
+        return fetch('/avatars/attendant.jpg', { method: 'HEAD' })
+      })
+      .then(r => {
+        if (!r) return
+        if (isReal(r, 'image')) setMode('photo')
+        else setMode('svg')
+      })
+      .catch(() => setMode('svg'))
+  }, [mode])
+  return mode || 'svg'
+}
+
 const API = 'http://localhost:8080'
 const WS = 'ws://localhost:8080/ws'
 
@@ -11,6 +50,7 @@ const WS = 'ws://localhost:8080/ws'
 const SESSION_ID = 'sess-' + Math.random().toString(36).slice(2, 10)
 
 export default function App() {
+  const avatarMode = useAvatarMode()
   const videoRef = useRef(null)
   const canvasRef = useRef(null)
   const wsRef = useRef(null)
@@ -714,17 +754,29 @@ export default function App() {
       <div className="main-split">
       {/* Stage */}
       <section className="stage">
-        <GabiAvatar
-          isSpeaking={isSpeaking}
-          amplitude={amplitude}
-          mood={
-            confirmedOrder ? 'confirmed'
+        {(() => {
+          const mood = confirmedOrder ? 'confirmed'
             : isSpeaking ? 'speaking'
             : step === 'listening' ? 'listening'
             : presenceDetected ? 'noticed'
             : 'idle'
+          const fb = <GabiAvatar isSpeaking={isSpeaking} amplitude={amplitude} mood={mood} />
+          if (avatarMode === 'photo') {
+            return (
+              <React.Suspense fallback={fb}>
+                <AvatarPhoto isSpeaking={isSpeaking} amplitude={amplitude} mood={mood} />
+              </React.Suspense>
+            )
           }
-        />
+          if (avatarMode === 'video') {
+            return (
+              <React.Suspense fallback={fb}>
+                <AvatarVideo isSpeaking={isSpeaking} amplitude={amplitude} mood={mood} />
+              </React.Suspense>
+            )
+          }
+          return fb
+        })()}
         <div className="speech-box">
           <div className="speech-label">
             {step === 'listening' && <><Mic size={14} /> ESCUTANDO...</>}
