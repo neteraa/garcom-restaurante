@@ -1,0 +1,884 @@
+{
+  "items": [
+    {
+      "id": "batata-com-mussarela-e-cupim",
+      "name": "BATATA com MUSSARELA e CUPIM",
+      "plural": "BATATA com MUSSARELA e CUPIMs",
+      "gender": "f",
+      "price": 38.99,
+      "category": "Novidade",
+      "image": "🍟",
+      "photo": "https://storage.googleapis.com/prod-cardapio-web/uploads/item/image/4669316/66e127deLançamento_Batata_frita__2_.jpg",
+      "thumb": "https://storage.googleapis.com/prod-cardapio-web/uploads/item/image/4669316/thumb_66e127deLançamento_Batata_frita__2_.jpg",
+      "description": "Batatas douradas e supercrocantes, cobertas com muita mussarela derretida, cupim desfiado macio e suculento, finalizadas com uma generosa camada de molho barbecue. Uma combinação irresistível, cremosa"
+    },
+    {
+      "id": "porcao-batata-200g",
+      "name": "PORÇÃO BATATA 200g",
+      "plural": "PORÇÃO BATATA 200gs",
+      "gender": "f",
+      "price": 10.0,
+      "category": "Novidade",
+      "image": "🍟",
+      "photo": "https://storage.googleapis.com/prod-cardapio-web/uploads/item/image/4681547/e0a19eadWhatsApp_Image_2026-07-24_at_16.05.29.jpeg",
+      "thumb": "https://storage.googleapis.com/prod-cardapio-web/uploads/item/image/4681547/thumb_e0a19eadWhatsApp_Image_2026-07-24_at_16.05.29.jpeg"
+    },
+    {
+      "id": "espetinho-de-fraldinha",
+      "name": "ESPETINHO DE FRALDINHA",
+      "plural": "ESPETINHO DE FRALDINHAs",
+      "gender": "m",
+      "price": 9.0,
+      "category": "Precinho Da Semana",
+      "image": "🍢",
+      "photo": "https://storage.googleapis.com/prod-cardapio-web/uploads/item/image/4157359/202402020339_1LKH_iblob_600.png",
+      "thumb": "https://storage.googleapis.com/prod-cardapio-web/uploads/item/image/4157359/thumb_202402020339_1LKH_iblob_600.png",
+      "description": "Delicioso Espetinho de Fraldinha Bovina, cuidadosamente selecionada para garantir a melhor qualidade. Nossos espetinhos são grelhados à perfeição, resultando em um sabor intenso e irresistível que der"
+    },
+    {
+      "id": "queijo-coalho",
+      "name": "QUEIJO COALHO",
+      "plural": "QUEIJO COALHOs",
+      "gender": "m",
+      "price": 9.0,
+      "category": "Precinho Da Semana",
+      "image": "🧀",
+      "photo": "https://storage.googleapis.com/prod-cardapio-web/uploads/item/image/4157361/202401211722_W5P1_iblob_600.png",
+      "thumb": "https://storage.googleapis.com/prod-cardapio-web/uploads/item/image/4157361/thumb_202401211722_W5P1_iblob_600.png",
+      "description": "Apresentamos o nosso espetinho de Queijo Coalho, uma verdadeira delícia da culinária brasileira. Proveniente da marca Quatá, este queijo é famoso por sua riqueza de sabor e textura única. Quando grelh"
+    },
+    {
+      "id": "espetinho-de-alcatra",
+      "name": "ESPETINHO DE ALCATRA",
+      "plural": "ESPETINHO DE ALCATRAs",
+      "gender": "m",
+      "price": 9.0,
+      "category": "Precinho Da Semana",
+      "image": "🍢",
+      "photo": "https://storage.googleapis.com/prod-cardapio-web/uploads/item/image/4157292/c08d4adfWhatsApp_Image_2026-03-25_at_15.09.10.jpeg",
+      "thumb": "https://storage.googleapis.com/prod-cardapio-web/uploads/item/image/4157292/thumb_c08d4adfWhatsApp_Image_2026-03-25_at_15.09.10.jpeg"
+    },
+    {
+      "id": "jm-burger-200g-de-batata",
+      "name": "JM BURGER + 200g DE BATATA",
+      "plural": "JM BURGER + 200g DE BATATAs",
+      "gender": "m",
+      "price": 31.95,
+      "category": "Combos Promocionais",
+      "image": "🍟",
+      "photo": "https://storage.googleapis.com/prod-cardapio-web/uploads/item/image/4681427/0ccc44dbWhatsApp_Image_2026-07-24_at_16.05.30.jpeg",
+      "thumb": "https://storage.googleapis.com/prod-cardapio-web/uploads/item/image/4681427/thumb_0ccc44dbWhatsApp_Image_2026-07-24_at_16.05.30.jpeg",
+      "description": "Pão brioche macio e levemente amanteigado, recheado com hambúrguer de fraldinha bovina de 160g, suculento e grelhado no ponto, queijo prato bem derretido e maionese artesanal cremosa. + Batata 200g"
+    },
+    {
+      "id": "jm-bacon-200g-de-batata",
+      "name": "JM BACON + 200g DE BATATA",
+      "plural": "JM BACON + 200g DE BATATAs",
+      "gender": "m",
+      "price": 35.2,
+      "category": "Combos Promocionais",
+      "image": "🍟",
+      "photo": "https://storage.googleapis.com/prod-cardapio-web/uploads/item/image/4681432/48fc09b5WhatsApp_Image_2026-07-24_at_16.05.30__1_.jpeg",
+      "thumb": "https://storage.googleapis.com/prod-cardapio-web/uploads/item/image/4681432/thumb_48fc09b5WhatsApp_Image_2026-07-24_at_16.05.30__1_.jpeg",
+      "description": "Pão brioche macio e levemente amanteigado, recheado com hambúrguer de fraldinha de 160g, suculento e grelhado no ponto, queijo prato bem derretido, bacon crocante e maionese da casa cremosa. + Batata "
+    },
+    {
+      "id": "jm-duplo-bacon-200g-de-batata",
+      "name": "JM DUPLO BACON + 200g DE BATATA",
+      "plural": "JM DUPLO BACON + 200g DE BATATAs",
+      "gender": "m",
+      "price": 44.9,
+      "category": "Combos Promocionais",
+      "image": "🍟",
+      "photo": "https://storage.googleapis.com/prod-cardapio-web/uploads/item/image/4681436/02303718WhatsApp_Image_2026-07-24_at_16.05.30__2_.jpeg",
+      "thumb": "https://storage.googleapis.com/prod-cardapio-web/uploads/item/image/4681436/thumb_02303718WhatsApp_Image_2026-07-24_at_16.05.30__2_.jpeg",
+      "description": "Pão brioche macio e levemente amanteigado, recheado com dois hambúrgueres de fraldinha de 160g, suculentos e grelhados no ponto, duas camadas de queijo prato bem derretido, duas camadas de bacon croca"
+    },
+    {
+      "id": "combo-10-espetinhos-de-fraldinha",
+      "name": "Combo 10 Espetinhos de Fraldinha",
+      "plural": "Combo 10 Espetinhos de Fraldinhas",
+      "gender": "m",
+      "price": 81.0,
+      "category": "⭐️ Mais Vendidos",
+      "image": "🍢",
+      "photo": "https://storage.googleapis.com/prod-cardapio-web/uploads/item/image/3719626/202402020339_1LKH_iblob_600_2__2_(2).png",
+      "thumb": "https://storage.googleapis.com/prod-cardapio-web/uploads/item/image/3719626/thumb_202402020339_1LKH_iblob_600_2__2_(2).png",
+      "description": "*10% OFF* - Nesse combo você leva *10 espetinhos de Fraldinha* por um valor especial!"
+    },
+    {
+      "id": "jm-duplo",
+      "name": "JM Duplo",
+      "plural": "JM Duplos",
+      "gender": "m",
+      "price": 37.99,
+      "category": "⭐️ Mais Vendidos",
+      "image": "🍽️",
+      "photo": "https://storage.googleapis.com/prod-cardapio-web/uploads/item/image/3719623/9655184dWhatsApp_Image_2025-12-08_at_12(2).15.19__1_.jpeg",
+      "thumb": "https://storage.googleapis.com/prod-cardapio-web/uploads/item/image/3719623/thumb_9655184dWhatsApp_Image_2025-12-08_at_12(2).15.19__1_.jpeg",
+      "description": "*Pão brioche, maionese artesanal, 2 hambúrguer 160g, 2 camadas de queijo prato, 2 camadas de bacon.*"
+    },
+    {
+      "id": "combo-5-espetinhos-de-picanha-bovina",
+      "name": "Combo 5 Espetinhos de Picanha Bovina",
+      "plural": "Combo 5 Espetinhos de Picanha Bovinas",
+      "gender": "m",
+      "price": 62.7,
+      "category": "⭐️ Mais Vendidos",
+      "image": "🍢",
+      "photo": "https://storage.googleapis.com/prod-cardapio-web/uploads/item/image/3719627/202401211716_QN1D_iblob_600_2_(2).png",
+      "thumb": "https://storage.googleapis.com/prod-cardapio-web/uploads/item/image/3719627/thumb_202401211716_QN1D_iblob_600_2_(2).png",
+      "description": "*5% OFF!* - Nesse combo você leva *5 espetinhos de Picanha* por um valor especial!"
+    },
+    {
+      "id": "jm-costela",
+      "name": "JM Costela",
+      "plural": "JM Costelas",
+      "gender": "m",
+      "price": 29.99,
+      "category": "⭐️ Mais Vendidos",
+      "image": "🍽️",
+      "photo": "https://storage.googleapis.com/prod-cardapio-web/uploads/item/image/3719624/a489f2b9Captura_de_Tela_2026-01-16_às_14(2).20.58.png",
+      "thumb": "https://storage.googleapis.com/prod-cardapio-web/uploads/item/image/3719624/thumb_a489f2b9Captura_de_Tela_2026-01-16_às_14(2).20.58.png",
+      "description": "Pão brioche, maionese da casa, hambúrguer de costela 160g com mussarela, bacon fatiado e molho barbecue"
+    },
+    {
+      "id": "jm-burguer",
+      "name": "JM Burguer",
+      "plural": "JM Burguers",
+      "gender": "m",
+      "price": 23.99,
+      "category": "Lanches",
+      "image": "🍽️",
+      "photo": "https://storage.googleapis.com/prod-cardapio-web/uploads/item/image/3307746/ad76e3c2WhatsApp_Image_2025-12-08_at_12.15.18.jpeg",
+      "thumb": "https://storage.googleapis.com/prod-cardapio-web/uploads/item/image/3307746/thumb_ad76e3c2WhatsApp_Image_2025-12-08_at_12.15.18.jpeg",
+      "description": "*Pão brioche, maionese artesanal, hambúrguer de fraldinha bovina 160g, queijo prato.*"
+    },
+    {
+      "id": "jm-salada",
+      "name": "JM Salada",
+      "plural": "JM Saladas",
+      "gender": "m",
+      "price": 26.9,
+      "category": "Lanches",
+      "image": "🍽️",
+      "photo": "https://storage.googleapis.com/prod-cardapio-web/uploads/item/image/3719614/929d5d34JM_SALADA__4_.jpg",
+      "thumb": "https://storage.googleapis.com/prod-cardapio-web/uploads/item/image/3719614/thumb_929d5d34JM_SALADA__4_.jpg",
+      "description": "*Pão brioche amanteigado, Hambúrguer de fraldinha 160g, Queijo prato, Alface americano, Tomate, Cebola roxa.*"
+    },
+    {
+      "id": "jm-bacon",
+      "name": "JM Bacon",
+      "plural": "JM Bacons",
+      "gender": "m",
+      "price": 28.99,
+      "category": "Lanches",
+      "image": "🍽️",
+      "photo": "https://storage.googleapis.com/prod-cardapio-web/uploads/item/image/3307747/cd3bac3aWhatsApp_Image_2025-12-08_at_12.15.18__1_.jpeg",
+      "thumb": "https://storage.googleapis.com/prod-cardapio-web/uploads/item/image/3307747/thumb_cd3bac3aWhatsApp_Image_2025-12-08_at_12.15.18__1_.jpeg",
+      "description": "*Pão brioche, maionese da casa, hambúrguer de fraldinha 160g, queijo prato, bacon.*"
+    },
+    {
+      "id": "maionese-artesanal",
+      "name": "Maionese Artesanal",
+      "plural": "Maionese Artesanals",
+      "gender": "m",
+      "price": 5.0,
+      "category": "Lanches",
+      "image": "🍽️",
+      "photo": "https://storage.googleapis.com/prod-cardapio-web/uploads/item/image/3039179/202412061427_A8XB_iblob_600.png",
+      "thumb": "https://storage.googleapis.com/prod-cardapio-web/uploads/item/image/3039179/thumb_202412061427_A8XB_iblob_600.png",
+      "description": "Composta por ovo caipira, limão Taiti e o segredo que somente a Jm tem"
+    },
+    {
+      "id": "pao-brioche",
+      "name": "pao brioche",
+      "plural": "pao brioches",
+      "gender": "m",
+      "price": 4.5,
+      "category": "Lanches",
+      "image": "🍽️",
+      "description": "Composta por ovo caipira, limão Taiti e o segredo que somente a Jm tem"
+    },
+    {
+      "id": "combo-jm-burguer-bacon-batata-frita-200g",
+      "name": "combo JM burguer bacon + batata frita 200g + coca lata 350ml",
+      "plural": "combo JM burguer bacon + batata frita 200g + coca lata 350mls",
+      "gender": "m",
+      "price": 43.99,
+      "category": "Lanches",
+      "image": "🍟",
+      "photo": "https://storage.googleapis.com/prod-cardapio-web/uploads/item/image/4585016/07da58bbIMG_5100.png",
+      "thumb": "https://storage.googleapis.com/prod-cardapio-web/uploads/item/image/4585016/thumb_07da58bbIMG_5100.png"
+    },
+    {
+      "id": "jm-duplo-bacon-batata-frita-200g-coca-la",
+      "name": "JM duplo bacon + batata frita 200g + coca lata 350ml",
+      "plural": "JM duplo bacon + batata frita 200g + coca lata 350mls",
+      "gender": "m",
+      "price": 53.99,
+      "category": "Lanches",
+      "image": "🍟",
+      "photo": "https://storage.googleapis.com/prod-cardapio-web/uploads/item/image/4704806/f6366e58IMG_5098.jpeg",
+      "thumb": "https://storage.googleapis.com/prod-cardapio-web/uploads/item/image/4704806/thumb_f6366e58IMG_5098.jpeg"
+    },
+    {
+      "id": "combo-jm-salada-batata-de-0-200g",
+      "name": "combo JM salada + batata de 0,200g",
+      "plural": "combo JM salada + batata de 0,200gs",
+      "gender": "m",
+      "price": 35.9,
+      "category": "Lanches",
+      "image": "🍟"
+    },
+    {
+      "id": "combo-jm-duplo-batata-0-200g",
+      "name": "combo JM duplo+ batata 0,200g",
+      "plural": "combo JM duplo+ batata 0,200gs",
+      "gender": "m",
+      "price": 45.99,
+      "category": "Lanches",
+      "image": "🍟"
+    },
+    {
+      "id": "combo-jm-costela",
+      "name": "combo  JM costela",
+      "plural": "combo  JM costelas",
+      "gender": "m",
+      "price": 37.99,
+      "category": "Lanches",
+      "image": "🎁"
+    },
+    {
+      "id": "jm-cupim",
+      "name": "jm cupim",
+      "plural": "jm cupims",
+      "gender": "m",
+      "price": 33.0,
+      "category": "Lanches",
+      "image": "🍽️"
+    },
+    {
+      "id": "combo-1-fraldinha-1-alcatra-1-pao-de-alh",
+      "name": "combo 1 fraldinha 1 alcatra 1 pão de alho 1 coca cola lata 350ml",
+      "plural": "combo 1 fraldinha 1 alcatra 1 pão de alho 1 coca cola lata 350mls",
+      "gender": "m",
+      "price": 35.79,
+      "category": "Combos Promocionais",
+      "image": "🥤"
+    },
+    {
+      "id": "costela-bovina-com-osso",
+      "name": "Costela bovina com osso",
+      "plural": "Costela bovina com ossos",
+      "gender": "m",
+      "price": 9.0,
+      "category": "Espetinhos",
+      "image": "🍽️",
+      "photo": "https://storage.googleapis.com/prod-cardapio-web/uploads/item/image/3039188/202401211704_KE2N_iblob_600.png",
+      "thumb": "https://storage.googleapis.com/prod-cardapio-web/uploads/item/image/3039188/thumb_202401211704_KE2N_iblob_600.png"
+    },
+    {
+      "id": "espetinho-de-picanha-bovina-argentina",
+      "name": "Espetinho de picanha bovina (Argentina)",
+      "plural": "Espetinho de picanha bovina (Argentina)s",
+      "gender": "m",
+      "price": 13.5,
+      "category": "Espetinhos",
+      "image": "🍢",
+      "photo": "https://storage.googleapis.com/prod-cardapio-web/uploads/item/image/3039189/202401211716_QN1D_iblob_600.png",
+      "thumb": "https://storage.googleapis.com/prod-cardapio-web/uploads/item/image/3039189/thumb_202401211716_QN1D_iblob_600.png"
+    },
+    {
+      "id": "espetinho-de-panceta-suina",
+      "name": "Espetinho de panceta suína",
+      "plural": "Espetinho de panceta suínas",
+      "gender": "m",
+      "price": 9.0,
+      "category": "Espetinhos",
+      "image": "🍢",
+      "photo": "https://storage.googleapis.com/prod-cardapio-web/uploads/item/image/3039190/202401211719_416C_iblob_600.png",
+      "thumb": "https://storage.googleapis.com/prod-cardapio-web/uploads/item/image/3039190/thumb_202401211719_416C_iblob_600.png",
+      "description": "Saboreie o nosso autêntico Espetinho de Panceta Suína, uma estrela na categoria de espetinhos. Cada pedaço de panceta é rigorosamente selecionado, garantindo uma textura irresistivelmente suculenta e "
+    },
+    {
+      "id": "espetinho-de-kafta-com-queijo",
+      "name": "Espetinho de kafta com queijo",
+      "plural": "Espetinho de kafta com queijos",
+      "gender": "m",
+      "price": 9.0,
+      "category": "Espetinhos",
+      "image": "🍢",
+      "photo": "https://storage.googleapis.com/prod-cardapio-web/uploads/item/image/3039191/202401211709_K2GM_iblob_600.png",
+      "thumb": "https://storage.googleapis.com/prod-cardapio-web/uploads/item/image/3039191/thumb_202401211709_K2GM_iblob_600.png",
+      "description": "Saboroso espetinho de kafta, uma tradicional receita árabe, enriquecido com o toque cremoso e suave de queijo derretido. A combinação perfeita entre a kafta, temperada com especiarias exóticas e o que"
+    },
+    {
+      "id": "espetinho-misto-fraldinha-bovina-frango",
+      "name": "Espetinho Misto (Fraldinha bovina / Frango)",
+      "plural": "Espetinho Misto (Fraldinha bovina / Frango)s",
+      "gender": "m",
+      "price": 8.5,
+      "category": "Espetinhos",
+      "image": "🍢",
+      "photo": "https://storage.googleapis.com/prod-cardapio-web/uploads/item/image/3039192/202311281853_W8LQ_iblob_600.png",
+      "thumb": "https://storage.googleapis.com/prod-cardapio-web/uploads/item/image/3039192/thumb_202311281853_W8LQ_iblob_600.png",
+      "description": "Fraldinha bovina / Frango"
+    },
+    {
+      "id": "kafta-c-queijo-e-pimenta-biquinho",
+      "name": "Kafta c/queijo e pimenta biquinho",
+      "plural": "Kafta c/queijo e pimenta biquinhos",
+      "gender": "f",
+      "price": 9.5,
+      "category": "Espetinhos",
+      "image": "🍢",
+      "photo": "https://storage.googleapis.com/prod-cardapio-web/uploads/item/image/3039193/202505121934_WY78_iblob_600.png",
+      "thumb": "https://storage.googleapis.com/prod-cardapio-web/uploads/item/image/3039193/thumb_202505121934_WY78_iblob_600.png"
+    },
+    {
+      "id": "espetinho-de-cordeiro",
+      "name": "Espetinho de cordeiro",
+      "plural": "Espetinho de cordeiros",
+      "gender": "m",
+      "price": 13.75,
+      "category": "Espetinhos",
+      "image": "🍢",
+      "photo": "https://storage.googleapis.com/prod-cardapio-web/uploads/item/image/3039194/202402020340_FXCF_iblob_600.png",
+      "thumb": "https://storage.googleapis.com/prod-cardapio-web/uploads/item/image/3039194/thumb_202402020340_FXCF_iblob_600.png",
+      "description": "Espetinho vendido apenas por unidades."
+    },
+    {
+      "id": "espetinho-de-tulipa",
+      "name": "Espetinho de tulipa",
+      "plural": "Espetinho de tulipas",
+      "gender": "m",
+      "price": 9.0,
+      "category": "Espetinhos",
+      "image": "🍢",
+      "photo": "https://storage.googleapis.com/prod-cardapio-web/uploads/item/image/3039195/202401211702_GO6I_iblob_600.png",
+      "thumb": "https://storage.googleapis.com/prod-cardapio-web/uploads/item/image/3039195/thumb_202401211702_GO6I_iblob_600.png",
+      "description": "Apresentamos o Espetinho de Tulipa: uma seleção primorosa de tulipas da asa de frango, cuidadosamente escolhidas por nossos chefs. Cada pedaço é meticulosamente preparado para garantir o sabor autênti"
+    },
+    {
+      "id": "medalhao-de-frango-e-bacon",
+      "name": "Medalhão de frango e bacon",
+      "plural": "Medalhão de frango e bacons",
+      "gender": "m",
+      "price": 9.8,
+      "category": "Espetinhos",
+      "image": "🍗",
+      "photo": "https://storage.googleapis.com/prod-cardapio-web/uploads/item/image/3039196/202401211721_NI78_iblob_600.png",
+      "thumb": "https://storage.googleapis.com/prod-cardapio-web/uploads/item/image/3039196/thumb_202401211721_NI78_iblob_600.png"
+    },
+    {
+      "id": "espetinho-de-frango",
+      "name": "Espetinho de Frango",
+      "plural": "Espetinho de Frangos",
+      "gender": "m",
+      "price": 9.0,
+      "category": "Espetinhos",
+      "image": "🍢",
+      "photo": "https://storage.googleapis.com/prod-cardapio-web/uploads/item/image/3039197/202401211707_WQK6_iblob_600.png",
+      "thumb": "https://storage.googleapis.com/prod-cardapio-web/uploads/item/image/3039197/thumb_202401211707_WQK6_iblob_600.png",
+      "description": "O Espetinho de Frango, da categoria Espetinhos, é uma deliciosa opção de prato. Com um frango suculento e perfeitamente temperado, cada mordida é uma experiência única de sabor. Cuidadosamente grelhad"
+    },
+    {
+      "id": "espetinho-de-pao-de-alho-santa-massa",
+      "name": "Espetinho de pão de alho (santa massa)",
+      "plural": "Espetinho de pão de alho (santa massa)s",
+      "gender": "m",
+      "price": 7.0,
+      "category": "Espetinhos",
+      "image": "🍢",
+      "photo": "https://storage.googleapis.com/prod-cardapio-web/uploads/item/image/3039198/202401211714_1G46_iblob_600.png",
+      "thumb": "https://storage.googleapis.com/prod-cardapio-web/uploads/item/image/3039198/thumb_202401211714_1G46_iblob_600.png",
+      "description": "Nosso Espetinho de Pão de Alho é um verdadeiro deleite para os amantes de sabores marcantes. Este prato, da categoria Espetinhos, é feito com pão artesanal, cuidadosamente temperado com um mix de alho"
+    },
+    {
+      "id": "maionese-e-farofa-artesanal-da-casa",
+      "name": "Maionese e farofa artesanal da casa",
+      "plural": "Maionese e farofa artesanal da casas",
+      "gender": "m",
+      "price": 5.0,
+      "category": "Espetinhos",
+      "image": "🍽️",
+      "photo": "https://storage.googleapis.com/prod-cardapio-web/uploads/item/image/3039201/202407091823_P23T_iblob_600.png",
+      "thumb": "https://storage.googleapis.com/prod-cardapio-web/uploads/item/image/3039201/thumb_202407091823_P23T_iblob_600.png",
+      "description": "Apresentamos a você nossa exclusiva 'Maionese e Farofa Artesanal da Casa'. Neste prato, você encontrará uma maionese robusta, feita com frescos ovos caipiras, mostarda para um toque picante e um toque"
+    },
+    {
+      "id": "espetinho-de-coracao-de-frango",
+      "name": "Espetinho de Coração de Frango",
+      "plural": "Espetinho de Coração de Frangos",
+      "gender": "m",
+      "price": 9.5,
+      "category": "Espetinhos",
+      "image": "🍢",
+      "photo": "https://storage.googleapis.com/prod-cardapio-web/uploads/item/image/3249607/e4a87581WhatsApp_Image_2025-11-27_at_18.24.51.jpeg",
+      "thumb": "https://storage.googleapis.com/prod-cardapio-web/uploads/item/image/3249607/thumb_e4a87581WhatsApp_Image_2025-11-27_at_18.24.51.jpeg"
+    },
+    {
+      "id": "espetinho-de-coxa-dessossada",
+      "name": "Espetinho de Coxa Dessossada",
+      "plural": "Espetinho de Coxa Dessossadas",
+      "gender": "m",
+      "price": 9.0,
+      "category": "Espetinhos",
+      "image": "🍢",
+      "photo": "https://storage.googleapis.com/prod-cardapio-web/uploads/item/image/3249615/b51abe32WhatsApp_Image_2025-11-27_at_18.24.51__1_.jpeg",
+      "thumb": "https://storage.googleapis.com/prod-cardapio-web/uploads/item/image/3249615/thumb_b51abe32WhatsApp_Image_2025-11-27_at_18.24.51__1_.jpeg"
+    },
+    {
+      "id": "espetinho-de-camarao",
+      "name": "Espetinho de Camarão",
+      "plural": "Espetinho de Camarãos",
+      "gender": "m",
+      "price": 15.0,
+      "category": "Espetinhos",
+      "image": "🍢",
+      "photo": "https://storage.googleapis.com/prod-cardapio-web/uploads/item/image/3521782/a17ddf55WhatsApp_Image_2026-01-23_at_15.54.47__1_.jpeg",
+      "thumb": "https://storage.googleapis.com/prod-cardapio-web/uploads/item/image/3521782/thumb_a17ddf55WhatsApp_Image_2026-01-23_at_15.54.47__1_.jpeg"
+    },
+    {
+      "id": "meat-bacon-cheddar",
+      "name": "Meat Bacon Cheddar",
+      "plural": "Meat Bacon Cheddars",
+      "gender": "m",
+      "price": 13.5,
+      "category": "Espetinhos",
+      "image": "🍽️",
+      "photo": "https://storage.googleapis.com/prod-cardapio-web/uploads/item/image/3869220/d09401b0WhatsApp_Image_2026-03-25_at_15.09.09__2_.jpeg",
+      "thumb": "https://storage.googleapis.com/prod-cardapio-web/uploads/item/image/3869220/thumb_d09401b0WhatsApp_Image_2026-03-25_at_15.09.09__2_.jpeg"
+    },
+    {
+      "id": "meat-bacon-catupiry",
+      "name": "Meat Bacon Catupiry",
+      "plural": "Meat Bacon Catupirys",
+      "gender": "m",
+      "price": 13.5,
+      "category": "Espetinhos",
+      "image": "🍽️",
+      "photo": "https://storage.googleapis.com/prod-cardapio-web/uploads/item/image/3869224/a5cfdf71WhatsApp_Image_2026-03-25_at_14.31.54.jpeg",
+      "thumb": "https://storage.googleapis.com/prod-cardapio-web/uploads/item/image/3869224/thumb_a5cfdf71WhatsApp_Image_2026-03-25_at_14.31.54.jpeg"
+    },
+    {
+      "id": "limao",
+      "name": "limão",
+      "plural": "limãos",
+      "gender": "m",
+      "price": 0.75,
+      "category": "Espetinhos",
+      "image": "🍽️"
+    },
+    {
+      "id": "farofa",
+      "name": "farofa",
+      "plural": "farofas",
+      "gender": "m",
+      "price": 4.5,
+      "category": "Espetinhos",
+      "image": "🍽️"
+    },
+    {
+      "id": "espetinho-de-sambiquira",
+      "name": "espetinho de sambiquira",
+      "plural": "espetinho de sambiquiras",
+      "gender": "m",
+      "price": 6.5,
+      "category": "Espetinhos",
+      "image": "🍢"
+    },
+    {
+      "id": "espeto-medalhao-romeu-e-julieta",
+      "name": "espeto medalhão romeu e julieta",
+      "plural": "espeto medalhão romeu e julietas",
+      "gender": "m",
+      "price": 15.5,
+      "category": "Espetinhos",
+      "image": "🍢"
+    },
+    {
+      "id": "queijo-qualho-doce-de-leite",
+      "name": "queijo qualho doce de leite",
+      "plural": "queijo qualho doce de leites",
+      "gender": "m",
+      "price": 11.5,
+      "category": "Espetinhos",
+      "image": "🧀"
+    },
+    {
+      "id": "fraldinha-bovina-cru",
+      "name": "Fraldinha bovina cru",
+      "plural": "Fraldinha bovina crus",
+      "gender": "m",
+      "price": 6.4,
+      "category": "Espetinhos Cru",
+      "image": "🍽️"
+    },
+    {
+      "id": "alcatra-bovina-cru",
+      "name": "Alcatra bovina cru",
+      "plural": "Alcatra bovina crus",
+      "gender": "m",
+      "price": 6.7,
+      "category": "Espetinhos Cru",
+      "image": "🥩"
+    },
+    {
+      "id": "picanha-argentina-cru",
+      "name": "Picanha argentina cru",
+      "plural": "Picanha argentina crus",
+      "gender": "m",
+      "price": 11.75,
+      "category": "Espetinhos Cru",
+      "image": "🥩"
+    },
+    {
+      "id": "kafta-cru",
+      "name": "Kafta cru",
+      "plural": "Kafta crus",
+      "gender": "f",
+      "price": 7.0,
+      "category": "Espetinhos Cru",
+      "image": "🍢"
+    },
+    {
+      "id": "panceta-suina-cru",
+      "name": "Panceta suína cru",
+      "plural": "Panceta suína crus",
+      "gender": "m",
+      "price": 6.0,
+      "category": "Espetinhos Cru",
+      "image": "🍽️"
+    },
+    {
+      "id": "tulipa-cru",
+      "name": "Tulipa cru",
+      "plural": "Tulipa crus",
+      "gender": "m",
+      "price": 6.0,
+      "category": "Espetinhos Cru",
+      "image": "🍽️"
+    },
+    {
+      "id": "coracaozinho-cru",
+      "name": "Coraçãozinho cru",
+      "plural": "Coraçãozinho crus",
+      "gender": "m",
+      "price": 6.8,
+      "category": "Espetinhos Cru",
+      "image": "❤️"
+    },
+    {
+      "id": "file-de-peito-cubos-cru",
+      "name": "Filé de peito cubos cru",
+      "plural": "Filé de peito cubos crus",
+      "gender": "m",
+      "price": 5.9,
+      "category": "Espetinhos Cru",
+      "image": "🥩"
+    },
+    {
+      "id": "coxa-desossada-cru",
+      "name": "Coxa desossada cru",
+      "plural": "Coxa desossada crus",
+      "gender": "m",
+      "price": 7.0,
+      "category": "Espetinhos Cru",
+      "image": "🍽️"
+    },
+    {
+      "id": "linguica-perdigao-na-brasa-cru",
+      "name": "Linguiça Perdigão na brasa cru",
+      "plural": "Linguiça Perdigão na brasa crus",
+      "gender": "f",
+      "price": 5.25,
+      "category": "Espetinhos Cru",
+      "image": "🌭"
+    },
+    {
+      "id": "camarao-cru",
+      "name": "Camarão cru",
+      "plural": "Camarão crus",
+      "gender": "m",
+      "price": 12.0,
+      "category": "Espetinhos Cru",
+      "image": "🍽️"
+    },
+    {
+      "id": "pao-de-alho-cru",
+      "name": "Pão de alho cru",
+      "plural": "Pão de alho crus",
+      "gender": "m",
+      "price": 5.0,
+      "category": "Espetinhos Cru",
+      "image": "🍽️"
+    },
+    {
+      "id": "2-espetinhos-de-alcatra-bovina-e-1-coca-",
+      "name": "2 Espetinhos de alcatra bovina e 1 coca lata 350ml",
+      "plural": "2 Espetinhos de alcatra bovina e 1 coca lata 350mls",
+      "gender": "m",
+      "price": 23.74,
+      "category": "Sugestão Da Casa",
+      "image": "🍢",
+      "photo": "https://storage.googleapis.com/prod-cardapio-web/uploads/item/image/3039180/202402020322_240T_iblob_600.png",
+      "thumb": "https://storage.googleapis.com/prod-cardapio-web/uploads/item/image/3039180/thumb_202402020322_240T_iblob_600.png"
+    },
+    {
+      "id": "coca-lata-350ml-1-espetinho-de-alcatra-1",
+      "name": "Coca lata 350ml 1 espetinho de alcatra, 1 espetinho de fraldinha e 1 pão de alho",
+      "plural": "Coca lata 350ml 1 espetinho de alcatra, 1 espetinho de fraldinha e 1 pão de alhos",
+      "gender": "f",
+      "price": 32.18,
+      "category": "Sugestão Da Casa",
+      "image": "🍢",
+      "photo": "https://storage.googleapis.com/prod-cardapio-web/uploads/item/image/3039181/202402020330_DOI4_iblob_600.png",
+      "thumb": "https://storage.googleapis.com/prod-cardapio-web/uploads/item/image/3039181/thumb_202402020330_DOI4_iblob_600.png"
+    },
+    {
+      "id": "2-pao-de-alho-2-fraldinha-bovina-2-frang",
+      "name": "2 Pão de alho + 2 Fraldinha bovina + 2 Frango + 2 Skol 350 ml.",
+      "plural": "2 Pão de alho + 2 Fraldinha bovina + 2 Frango + 2 Skol 350 ml.s",
+      "gender": "m",
+      "price": 64.9,
+      "category": "Sugestão Da Casa",
+      "image": "🍺",
+      "photo": "https://storage.googleapis.com/prod-cardapio-web/uploads/item/image/3039182/202203011835_N32D_iblob_600.png",
+      "thumb": "https://storage.googleapis.com/prod-cardapio-web/uploads/item/image/3039182/thumb_202203011835_N32D_iblob_600.png",
+      "description": "2 Pão de alho + 2 Fraldinha bovina + 2 Frango + 2 Skol 350 ml."
+    },
+    {
+      "id": "1-pao-de-alho-1-fraldinha-bovina-1-frang",
+      "name": "1 Pão de alho + 1 Fraldinha bovina + 1 Frango + Refrigerante Coca-Cola 350 ml.",
+      "plural": "1 Pão de alho + 1 Fraldinha bovina + 1 Frango + Refrigerante Coca-Cola 350 ml.s",
+      "gender": "m",
+      "price": 32.45,
+      "category": "Sugestão Da Casa",
+      "image": "🥤",
+      "photo": "https://storage.googleapis.com/prod-cardapio-web/uploads/item/image/3039183/202203011837_E773_iblob_600.png",
+      "thumb": "https://storage.googleapis.com/prod-cardapio-web/uploads/item/image/3039183/thumb_202203011837_E773_iblob_600.png",
+      "description": "1 Pão de alho + 1 Fraldinha bovina + 1 Frango + Refrigerante Coca-Cola 350 ml."
+    },
+    {
+      "id": "1-espetinho-de-alcatra-1-espetinho-de-qu",
+      "name": "1 Espetinho de alcatra, 1 espetinho de queijo coalho Quatá e uma coca lata 350ml",
+      "plural": "1 Espetinho de alcatra, 1 espetinho de queijo coalho Quatá e uma coca lata 350mls",
+      "gender": "m",
+      "price": 25.53,
+      "category": "Sugestão Da Casa",
+      "image": "🍢",
+      "photo": "https://storage.googleapis.com/prod-cardapio-web/uploads/item/image/3039184/202402020315_8301_iblob_600.png",
+      "thumb": "https://storage.googleapis.com/prod-cardapio-web/uploads/item/image/3039184/thumb_202402020315_8301_iblob_600.png"
+    },
+    {
+      "id": "1-kafta-com-queijo-1-fraldinha-bovina-1-",
+      "name": "1 kafta com queijo + 1 Fraldinha bovina + 1 Linguiça + 1 coração de frango",
+      "plural": "1 kafta com queijo + 1 Fraldinha bovina + 1 Linguiça + 1 coração de frangos",
+      "gender": "m",
+      "price": 37.03,
+      "category": "Sugestão Da Casa",
+      "image": "🌭",
+      "description": "1 kafta com queijo,1 Fraldinha bovina,1 Linguiça,1 coração de frango"
+    },
+    {
+      "id": "trident",
+      "name": "Trident",
+      "plural": "Tridents",
+      "gender": "m",
+      "price": 4.0,
+      "category": "Sobremesas",
+      "image": "🍽️"
+    },
+    {
+      "id": "kinder-ovo",
+      "name": "Kinder Ovo",
+      "plural": "Kinder Ovos",
+      "gender": "m",
+      "price": 13.0,
+      "category": "Sobremesas",
+      "image": "🍽️"
+    },
+    {
+      "id": "kinder-tronk",
+      "name": "Kinder Tronk",
+      "plural": "Kinder Tronks",
+      "gender": "m",
+      "price": 6.0,
+      "category": "Sobremesas",
+      "image": "🍽️"
+    },
+    {
+      "id": "kinder-nutella",
+      "name": "Kinder Nutella",
+      "plural": "Kinder Nutellas",
+      "gender": "m",
+      "price": 6.0,
+      "category": "Sobremesas",
+      "image": "🍽️"
+    },
+    {
+      "id": "kinder-bueno",
+      "name": "Kinder Bueno",
+      "plural": "Kinder Buenos",
+      "gender": "m",
+      "price": 13.0,
+      "category": "Sobremesas",
+      "image": "🍽️"
+    },
+    {
+      "id": "petit-gateau",
+      "name": "petit gateau",
+      "plural": "petit gateaus",
+      "gender": "m",
+      "price": 25.0,
+      "category": "Sobremesas",
+      "image": "🍽️"
+    },
+    {
+      "id": "pudim-espeto",
+      "name": "pudim espeto",
+      "plural": "pudim espetos",
+      "gender": "m",
+      "price": 12.5,
+      "category": "Sobremesas",
+      "image": "🍢"
+    },
+    {
+      "id": "coca-600",
+      "name": "coca 600",
+      "plural": "coca 600s",
+      "gender": "f",
+      "price": 10.5,
+      "category": "Bebidas",
+      "image": "🥤"
+    },
+    {
+      "id": "kapo",
+      "name": "kapo",
+      "plural": "kapos",
+      "gender": "m",
+      "price": 4.0,
+      "category": "Bebidas",
+      "image": "🍽️"
+    },
+    {
+      "id": "suco-natural",
+      "name": "suco natural",
+      "plural": "suco naturals",
+      "gender": "m",
+      "price": 10.0,
+      "category": "Bebidas",
+      "image": "🧃"
+    },
+    {
+      "id": "del-vale-laranja",
+      "name": "Del vale laranja",
+      "plural": "Del vale laranjas",
+      "gender": "m",
+      "price": 6.0,
+      "category": "Bebidas",
+      "image": "🍽️"
+    },
+    {
+      "id": "ice",
+      "name": "ice",
+      "plural": "ices",
+      "gender": "m",
+      "price": 12.0,
+      "category": "Bebidas",
+      "image": "🍽️"
+    },
+    {
+      "id": "coca-cola-de-1500",
+      "name": "coca cola de 1500",
+      "plural": "coca cola de 1500s",
+      "gender": "f",
+      "price": 15.0,
+      "category": "Bebidas",
+      "image": "🥤"
+    },
+    {
+      "id": "del-vale-uva",
+      "name": "del vale uva",
+      "plural": "del vale uvas",
+      "gender": "m",
+      "price": 6.0,
+      "category": "Bebidas",
+      "image": "🍽️"
+    },
+    {
+      "id": "amistel-drink",
+      "name": "amistel  drink",
+      "plural": "amistel  drinks",
+      "gender": "m",
+      "price": 7.0,
+      "category": "Bebidas",
+      "image": "🍽️"
+    },
+    {
+      "id": "refrigerante-fanta-2-litro",
+      "name": "refrigerante fanta 2 litro",
+      "plural": "refrigerante fanta 2 litros",
+      "gender": "m",
+      "price": 14.0,
+      "category": "Bebidas",
+      "image": "🥤"
+    },
+    {
+      "id": "michela-long-nek",
+      "name": "michela long nek",
+      "plural": "michela long neks",
+      "gender": "m",
+      "price": 12.0,
+      "category": "Bebidas",
+      "image": "🍽️"
+    },
+    {
+      "id": "caipirinha",
+      "name": "caipirinha",
+      "plural": "caipirinhas",
+      "gender": "m",
+      "price": 17.0,
+      "category": "Bebidas",
+      "image": "🍽️"
+    },
+    {
+      "id": "coca-cola-mini-pet-200ml",
+      "name": "coca cola mini pet 200ml",
+      "plural": "coca cola mini pet 200mls",
+      "gender": "f",
+      "price": 3.5,
+      "category": "Bebidas",
+      "image": "🥤"
+    },
+    {
+      "id": "gatorade",
+      "name": "gatorade",
+      "plural": "gatorades",
+      "gender": "m",
+      "price": 9.5,
+      "category": "Bebidas",
+      "image": "🍽️"
+    },
+    {
+      "id": "spaten-600",
+      "name": "Spaten 600",
+      "plural": "Spaten 600s",
+      "gender": "m",
+      "price": 12.5,
+      "category": "Cervejas 600Ml",
+      "image": "🍽️"
+    },
+    {
+      "id": "cu-de-burro",
+      "name": "cu de burro",
+      "plural": "cu de burros",
+      "gender": "m",
+      "price": 6.0,
+      "category": "Cervejas 600Ml",
+      "image": "🍽️"
+    }
+  ]
+}

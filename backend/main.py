@@ -1,0 +1,1374 @@
+import base64
+import json
+import os
+import re
+import time
+import uuid
+from datetime import datetime
+from io import BytesIO
+from pathlib import Path
+
+import numpy as np
+import torch
+from fastapi import FastAPI, File, Form, UploadFile, WebSocket, WebSocketDisconnect
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, StreamingResponse
+from PIL import Image
+from pydantic import BaseModel
+
+# Use MTCNN + FaceNet for face detection/recognition (same as original Garcom, but lighter)
+print("Loading face detection model (MTCNN)...")
+from facenet_pytorch import MTCNN, InceptionResnetV1
+
+face_detector = MTCNN(keep_all=True, device="cpu", post_process=False, min_face_size=80, thresholds=[0.7, 0.8, 0.85])
+face_encoder = InceptionResnetV1(pretrained="vggface2").eval()
+
+# Paths
+BASE_DIR = Path(__file__).parent
+DATA_DIR = BASE_DIR / "data"
+CUSTOMERS_FILE = DATA_DIR / "customers.json"
+ORDERS_FILE = DATA_DIR / "orders.json"
+FACES_DIR = DATA_DIR / "faces"
+DATA_DIR.mkdir(exist_ok=True)
+FACES_DIR.mkdir(exist_ok=True)
+
+# Memory
+if CUSTOMERS_FILE.exists():
+    with open(CUSTOMERS_FILE, "r", encoding="utf-8") as f:
+        customers = json.load(f)
+else:
+    customers = {}
+
+if ORDERS_FILE.exists():
+    with open(ORDERS_FILE, "r", encoding="utf-8") as f:
+        orders = json.load(f)
+else:
+    orders = []
+
+
+def save_customers():
+    with open(CUSTOMERS_FILE, "w", encoding="utf-8") as f:
+        json.dump(customers, f, indent=2, ensure_ascii=False)
+
+
+def save_orders():
+    with open(ORDERS_FILE, "w", encoding="utf-8") as f:
+        json.dump(orders, f, indent=2, ensure_ascii=False)
+
+
+# Menu JM Espetinhos & Assados - Itapeva/SP
+# gender: "m" or "f". plural: nome no plural pra fala natural
+MENU = [
+    # Espetinhos (carro-chefe do JM)
+    {"id": "esp-alcatra", "name": "Espetinho de Alcatra", "plural": "Espetinhos de Alcatra", "gender": "m", "price": 12.0, "category": "Espetinhos", "image": "🍢"},
+    {"id": "esp-file", "name": "Espetinho de Filé Mignon", "plural": "Espetinhos de Filé Mignon", "gender": "m", "price": 15.0, "category": "Espetinhos", "image": "🍢"},
+    {"id": "esp-frango", "name": "Espetinho de Frango", "plural": "Espetinhos de Frango", "gender": "m", "price": 10.0, "category": "Espetinhos", "image": "🍗"},
+    {"id": "esp-frangobacon", "name": "Frango com Bacon", "plural": "Frangos com Bacon", "gender": "m", "price": 12.0, "category": "Espetinhos", "image": "🥓"},
+    {"id": "esp-coracao", "name": "Espetinho de Coração", "plural": "Espetinhos de Coração", "gender": "m", "price": 10.0, "category": "Espetinhos", "image": "❤️"},
+    {"id": "esp-kafta", "name": "Kafta", "plural": "Kaftas", "gender": "f", "price": 12.0, "category": "Espetinhos", "image": "🍢"},
+    {"id": "esp-linguica", "name": "Linguiça Toscana", "plural": "Linguiças Toscanas", "gender": "f", "price": 10.0, "category": "Espetinhos", "image": "🌭"},
+    {"id": "esp-queijo", "name": "Espetinho de Queijo", "plural": "Espetinhos de Queijo", "gender": "m", "price": 12.0, "category": "Espetinhos", "image": "🧀"},
+    {"id": "esp-medalhao", "name": "Medalhão de Frango", "plural": "Medalhões de Frango", "gender": "m", "price": 13.0, "category": "Espetinhos", "image": "🍢"},
+
+    # Lanches
+    {"id": "x-burger", "name": "X-Burger", "plural": "X-Burgers", "gender": "m", "price": 22.0, "category": "Lanches", "image": "🍔"},
+    {"id": "x-salada", "name": "X-Salada", "plural": "X-Saladas", "gender": "m", "price": 24.0, "category": "Lanches", "image": "🍔"},
+    {"id": "x-frango", "name": "X-Frango", "plural": "X-Frangos", "gender": "m", "price": 25.0, "category": "Lanches", "image": "🍗"},
+    {"id": "x-tudo", "name": "X-Tudo", "plural": "X-Tudos", "gender": "m", "price": 32.0, "category": "Lanches", "image": "🍔"},
+
+    # Bebidas
+    {"id": "cerveja-lata", "name": "Cerveja em Lata", "plural": "Cervejas em Lata", "gender": "f", "price": 8.0, "category": "Bebidas", "image": "🍺"},
+    {"id": "cerveja-long", "name": "Cerveja Long Neck", "plural": "Cervejas Long Neck", "gender": "f", "price": 12.0, "category": "Bebidas", "image": "🍺"},
+    {"id": "chopp", "name": "Chopp Gelado", "plural": "Chopps Gelados", "gender": "m", "price": 10.0, "category": "Bebidas", "image": "🍺"},
+    {"id": "refri-lata", "name": "Refrigerante Lata", "plural": "Refrigerantes Lata", "gender": "m", "price": 6.0, "category": "Bebidas", "image": "🥤"},
+    {"id": "refri-2l", "name": "Refrigerante 2 Litros", "plural": "Refrigerantes 2 Litros", "gender": "m", "price": 15.0, "category": "Bebidas", "image": "🥤"},
+    {"id": "agua", "name": "Água Mineral", "plural": "Águas Minerais", "gender": "f", "price": 4.0, "category": "Bebidas", "image": "💧"},
+    {"id": "suco", "name": "Suco Natural", "plural": "Sucos Naturais", "gender": "m", "price": 8.0, "category": "Bebidas", "image": "🍹"},
+
+    # Acompanhamentos
+    {"id": "farofa", "name": "Farofa", "plural": "Farofas", "gender": "f", "price": 8.0, "category": "Acompanhamentos", "image": "🌾"},
+    {"id": "vinagrete", "name": "Vinagrete", "plural": "Vinagretes", "gender": "m", "price": 6.0, "category": "Acompanhamentos", "image": "🥗"},
+    {"id": "mandioca", "name": "Mandioca Frita", "plural": "Mandiocas Fritas", "gender": "f", "price": 15.0, "category": "Acompanhamentos", "image": "🍟"},
+    {"id": "pao-alho", "name": "Pão de Alho", "plural": "Pães de Alho", "gender": "m", "price": 12.0, "category": "Acompanhamentos", "image": "🍞"},
+]
+
+# Override MENU com cardápio real do JM (importado do cardapioweb) se existir
+_MENU_JM_FILE = DATA_DIR / "menu_jm.json"
+if _MENU_JM_FILE.exists():
+    try:
+        with open(_MENU_JM_FILE, "r", encoding="utf-8") as _f:
+            _data = json.load(_f)
+            _items = _data.get("items", _data) if isinstance(_data, dict) else _data
+            if isinstance(_items, list) and _items:
+                MENU = _items
+                print(f"✅ Cardápio JM real carregado: {len(MENU)} itens de {_MENU_JM_FILE}")
+    except Exception as _e:
+        print(f"⚠️ Falha ao carregar menu_jm.json: {_e}")
+
+# OpenAI for TTS
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+
+NUMBER_WORDS_F = {
+    "1": "uma", "2": "duas", "3": "três", "4": "quatro", "5": "cinco",
+    "6": "seis", "7": "sete", "8": "oito", "9": "nove", "10": "dez",
+    "11": "onze", "12": "doze",
+}
+NUMBER_WORDS_M = {
+    "1": "um", "2": "dois", "3": "três", "4": "quatro", "5": "cinco",
+    "6": "seis", "7": "sete", "8": "oito", "9": "nove", "10": "dez",
+    "11": "onze", "12": "doze",
+}
+# Default (generic) — use feminine as it's ambiguous fallback
+NUMBER_WORDS = NUMBER_WORDS_F
+
+def qty_word(qty: int, gender: str = "m") -> str:
+    """Return spoken quantity in correct gender."""
+    words = NUMBER_WORDS_M if gender == "m" else NUMBER_WORDS_F
+    return words.get(str(qty), str(qty))
+
+def speakify(text: str) -> str:
+    """Convert written text to natural spoken text (remove symbols, expand abbreviations)."""
+    if not text:
+        return text
+    t = text
+
+    # Handle "N× ItemName" and "N ItemName" — pick article by ItemName gender
+    def _qty_item(match):
+        n = match.group(1)
+        item_word = match.group(2)
+        # Try to find item gender by matching item_word to a menu name
+        item_word_low = item_word.lower()
+        gender = "m"  # default
+        for m in MENU:
+            if item_word_low in m["name"].lower() or item_word_low in m.get("plural", "").lower():
+                gender = m.get("gender", "m")
+                break
+        # Special common words that are unambiguous
+        if any(w in item_word_low for w in ["cerveja", "kafta", "linguiça", "farofa", "água", "mandioca"]):
+            gender = "f"
+        if any(w in item_word_low for w in ["chopp", "espetinho", "medalhão", "refrigerante", "suco", "pão", "burger", "hambúrguer"]):
+            gender = "m"
+        return f"{qty_word(int(n), gender)} {item_word}"
+
+    # Pattern: "2× Espetinho" or "2 Espetinho"
+    t = re.sub(r"(\d+)\s*[x×✕✖X]?\s+([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ\s\-]{2,40}?)(?=[,.;!?]|\s+e\s|\s+ou\s|$)", _qty_item, t)
+
+    # Standalone × → spaces
+    t = t.replace("×", " ").replace("✕", " ").replace("✖", " ")
+    # c/ → com   (e.g. "Frango c/ Bacon" → "Frango com Bacon")
+    t = re.sub(r"\bc/\s*", "com ", t)
+    # s/ → sem
+    t = re.sub(r"\bs/\s*", "sem ", t)
+    # R$ 12.00 or R$ 12,00 → "12 reais"
+    t = re.sub(r"R\$\s*(\d+)[.,]?(\d*)", lambda m: (f"{m.group(1)} reais e {m.group(2)} centavos" if m.group(2) and m.group(2) != "00" else f"{m.group(1)} reais"), t)
+    # # sign → "número"
+    t = re.sub(r"#\s*(\w+)", r"número \1", t)
+    # Collapse extra spaces
+    t = re.sub(r"\s+", " ", t).strip()
+    return t
+
+
+async def tts_speak(text: str, voice: str = "pt-BR-ThalitaNeural"):
+    """Generate speech via edge-tts (native BR voice, free). Fallback to OpenAI."""
+    text = speakify(text)
+    try:
+        import edge_tts
+        # Add a slight speed boost to sound more natural / energetic
+        communicate = edge_tts.Communicate(text, voice, rate="+5%")
+        audio = b""
+        async for chunk in communicate.stream():
+            if chunk["type"] == "audio":
+                audio += chunk["data"]
+        if audio:
+            return audio
+    except Exception as e:
+        print(f"edge-tts error: {e}")
+
+    # Fallback to OpenAI
+    if OPENAI_API_KEY:
+        try:
+            import openai
+            client = openai.OpenAI(api_key=OPENAI_API_KEY)
+            resp = client.audio.speech.create(model="tts-1", voice="nova", input=text)
+            return resp.content
+        except Exception as e:
+            print(f"OpenAI TTS fallback error: {e}")
+    return None
+
+
+# Helpers
+
+def decode_frame(b64: str) -> Image.Image:
+    data = b64.split(",")[-1]
+    img = Image.open(BytesIO(base64.b64decode(data))).convert("RGB")
+    return img
+
+
+def encode_frame(img: Image.Image) -> str:
+    buf = BytesIO()
+    img.save(buf, format="JPEG", quality=80)
+    return base64.b64encode(buf.getvalue()).decode()
+
+
+def get_face_embedding(img: Image.Image, box):
+    """Crop face and get embedding. MTCNN returns [x1, y1, x2, y2] pixel coords."""
+    x1, y1, x2, y2 = [int(v) for v in box]
+    # Sanity check + margin
+    w, h = img.size
+    x1 = max(0, x1); y1 = max(0, y1)
+    x2 = min(w, x2); y2 = min(h, y2)
+    if x2 - x1 < 20 or y2 - y1 < 20:
+        return None
+    crop = img.crop((x1, y1, x2, y2)).resize((160, 160))
+    arr = np.array(crop).astype(np.float32) / 255.0
+    arr = (arr - 0.5) / 0.5
+    tensor = torch.from_numpy(arr).permute(2, 0, 1).unsqueeze(0)
+    with torch.no_grad():
+        emb = face_encoder(tensor)
+    return emb.squeeze().numpy()
+
+
+def cosine_similarity(a, b):
+    return float(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b)))
+
+
+BLOCKED_NAMES = {"gabi", "gaby", "gabby", "gabriela", "gabriella"}  # nome da atendente
+
+
+def normalize_name(raw: str) -> str:
+    """Normalize name for storage: strip, single space, title case, first name only.
+    Returns empty string if it's the assistant's own name."""
+    n = re.sub(r"[^\w\s]", "", raw or "").strip()
+    n = re.sub(r"\s+", " ", n)
+    if not n:
+        return ""
+    first = n.split()[0]
+    if first.lower() in BLOCKED_NAMES:
+        return ""  # rejeita — cliente não pode se chamar Gabi
+    return first.capitalize()
+
+
+def recognize_face(embedding, threshold=0.62):  # 0.62 = balance entre reconhecer volta e não confundir
+    best = None
+    best_score = 0.0
+    for name, data in customers.items():
+        for emb in data.get("embeddings", []):
+            score = cosine_similarity(embedding, np.array(emb))
+            if score > best_score:
+                best_score = score
+                best = name
+    if best and best_score >= threshold:
+        return best, best_score
+    return None, best_score
+
+
+# FastAPI app
+app = FastAPI(title="Garçom Restaurante")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+class TTSRequest(BaseModel):
+    text: str
+
+
+class OrderRequest(BaseModel):
+    customer_id: str
+    items: list
+    total: float
+    notes: str = ""
+
+
+class RegisterRequest(BaseModel):
+    name: str
+    frame: str
+
+
+@app.get("/api/menu")
+def get_menu():
+    return {"items": MENU}
+
+
+@app.get("/api/customers")
+def list_customers():
+    return {"customers": [{"id": k, **v} for k, v in customers.items()]}
+
+
+@app.post("/api/identify-face")
+async def identify_face(payload: dict):
+    """Given a base64 frame, detect and identify face(s)."""
+    if not payload.get("frame"):
+        return {"ok": False, "error": "no frame"}
+    img = decode_frame(payload["frame"])
+    boxes, _ = face_detector.detect(img)
+    if boxes is None or len(boxes) == 0:
+        return {"ok": False, "status": "no_face", "message": "Não estou vendo ninguém. Aproxime-se da câmera."}
+
+    n_faces = len(boxes)
+
+    # Find biggest face (the one closest to camera = who's ordering)
+    areas = [(b[2] - b[0]) * (b[3] - b[1]) for b in boxes]
+    idx = int(np.argmax(areas))
+    box = boxes[idx]
+    embedding = get_face_embedding(img, box)
+    if embedding is None:
+        return {"ok": False, "status": "error", "message": "Não consegui capturar seu rosto direito."}
+
+    name, score = recognize_face(embedding)
+    # Ignora se foi reconhecido como blocked name (Gabi etc.) — safety net
+    if name and name.lower() in BLOCKED_NAMES:
+        print(f"⚠️  identify-face reconheceu blocked name '{name}', ignorando")
+        name = None
+    if name:
+        person = customers[name]
+        return {
+            "ok": True,
+            "status": "known",
+            "name": name,
+            "confidence": round(score * 100, 1),
+            "history": person.get("history", []),
+            "n_faces": n_faces,
+            "message": f"Bem-vindo de volta, {name}!",
+        }
+    return {
+        "ok": True,
+        "status": "unknown",
+        "n_faces": n_faces,
+        "message": "Não te conheço ainda. Qual é o seu nome?",
+    }
+
+
+@app.post("/api/register-face")
+async def register_face(req: RegisterRequest):
+    img = decode_frame(req.frame)
+    boxes, _ = face_detector.detect(img)
+    if boxes is None or len(boxes) == 0:
+        return {"ok": False, "error": "no face"}
+
+    # Use largest face
+    areas = [(b[2] - b[0]) * (b[3] - b[1]) for b in boxes]
+    box = boxes[np.argmax(areas)]
+    embedding = get_face_embedding(img, box)
+    if embedding is None:
+        return {"ok": False, "error": "embedding failed"}
+
+    name = normalize_name(req.name)
+    if not name:
+        return {"ok": False, "error": "invalid name"}
+
+    # If a very similar face already exists under a different name, MERGE into that name
+    existing_name, existing_score = recognize_face(embedding, threshold=0.55)
+    if existing_name and existing_name.lower() != name.lower():
+        # Merge: prefer the newer/human-provided name if it's non-empty and short
+        # Move embeddings from existing_name → name (or keep existing_name and just add this embedding)
+        # Simpler: keep existing_name (already recognized) — but add a name alias
+        print(f"⚠️  Face matched '{existing_name}' but new name is '{name}'. Merging embeddings under '{name}'.")
+        old = customers.pop(existing_name, {})
+        customers.setdefault(name, {"name": name, "created_at": datetime.now().isoformat(), "embeddings": [], "history": [], "photo": None})
+        customers[name]["embeddings"].extend(old.get("embeddings", []))
+        customers[name]["history"] = old.get("history", []) + customers[name].get("history", [])
+
+    # Save thumbnail
+    thumb_id = str(uuid.uuid4())[:8]
+    crop = img.crop((int(box[0]), int(box[1]), int(box[2]), int(box[3])))
+    thumb_path = FACES_DIR / f"{thumb_id}.jpg"
+    crop.save(thumb_path, quality=85)
+
+    if name not in customers:
+        customers[name] = {"name": name, "created_at": datetime.now().isoformat(), "embeddings": [], "history": [], "photo": str(thumb_path)}
+
+    # Cap embeddings to last 10 to keep JSON small
+    customers[name]["embeddings"].append(embedding.tolist())
+    customers[name]["embeddings"] = customers[name]["embeddings"][-10:]
+    customers[name]["last_seen"] = datetime.now().isoformat()
+    customers[name]["photo"] = str(thumb_path)
+    save_customers()
+
+    return {"ok": True, "name": name, "n_embeddings": len(customers[name]["embeddings"]), "message": f"Prazer, {name}! Agora eu te reconheço."}
+
+
+async def broadcast_new_order(order: dict):
+    """Send a newly-created order to all connected kitchen displays."""
+    for ws in list(kitchen_clients):
+        try:
+            await ws.send_text(json.dumps({"type": "new", "order": order}))
+        except Exception:
+            kitchen_clients.discard(ws)
+
+
+@app.post("/api/order")
+async def create_order(req: OrderRequest):
+    order = {
+        "id": str(uuid.uuid4())[:8],
+        "customer_id": req.customer_id,
+        "items": req.items,
+        "total": req.total,
+        "notes": req.notes,
+        "status": "preparing",
+        "created_at": datetime.now().isoformat(),
+    }
+    orders.append(order)
+    save_orders()
+    if req.customer_id in customers:
+        names = [it["name"] for it in req.items]
+        customers[req.customer_id]["history"].insert(0, {"items": names, "total": req.total, "date": order["created_at"]})
+        customers[req.customer_id]["history"] = customers[req.customer_id]["history"][:20]
+        save_customers()
+    await broadcast_new_order(order)
+    return {"ok": True, "order": order}
+
+
+@app.get("/api/orders")
+def list_orders():
+    return {"orders": sorted(orders, key=lambda x: x["created_at"], reverse=True)[:50]}
+
+
+@app.get("/api/stats")
+def get_stats():
+    """Real-time cash-flow / sales summary."""
+    from collections import Counter, defaultdict
+    now = datetime.now()
+    today_str = now.date().isoformat()
+
+    today_orders = [o for o in orders if o.get("created_at", "").startswith(today_str)]
+    active_orders = [o for o in orders if o.get("status") in ("preparing", "ready")]
+
+    # Exclude canceled from revenue
+    valid_today = [o for o in today_orders if o.get("status") != "canceled"]
+    total_today = sum(o.get("total", 0) for o in valid_today)
+    ticket_avg = (total_today / len(valid_today)) if valid_today else 0
+
+    # Top items today
+    item_counter = Counter()
+    item_revenue = defaultdict(float)
+    for o in valid_today:
+        for it in o.get("items", []):
+            item_counter[it["name"]] += it.get("qty", 1)
+            item_revenue[it["name"]] += it.get("total", it.get("price", 0) * it.get("qty", 1))
+    top_items = [
+        {"name": n, "qty": q, "revenue": round(item_revenue[n], 2)}
+        for n, q in item_counter.most_common(6)
+    ]
+
+    # Hourly buckets (last 12 hours)
+    hour_buckets = defaultdict(lambda: {"count": 0, "revenue": 0.0})
+    for o in valid_today:
+        try:
+            h = datetime.fromisoformat(o["created_at"]).hour
+            hour_buckets[h]["count"] += 1
+            hour_buckets[h]["revenue"] += o.get("total", 0)
+        except Exception:
+            pass
+    hours_series = [
+        {"hour": h, "count": hour_buckets[h]["count"], "revenue": round(hour_buckets[h]["revenue"], 2)}
+        for h in sorted(hour_buckets.keys())
+    ]
+
+    # Status breakdown
+    status_counts = Counter(o.get("status", "unknown") for o in today_orders)
+
+    # Recent 8 orders
+    recent = sorted(today_orders, key=lambda x: x["created_at"], reverse=True)[:8]
+    recent_min = [{
+        "id": o["id"], "customer": o.get("customer_id") or "Anônimo",
+        "total": o.get("total", 0), "status": o.get("status"),
+        "created_at": o.get("created_at"), "items_count": len(o.get("items", [])),
+    } for o in recent]
+
+    return {
+        "date": today_str,
+        "total_today": round(total_today, 2),
+        "orders_today": len(valid_today),
+        "orders_canceled": len(today_orders) - len(valid_today),
+        "ticket_avg": round(ticket_avg, 2),
+        "active_count": len(active_orders),
+        "top_items": top_items,
+        "hours_series": hours_series,
+        "status_counts": dict(status_counts),
+        "recent": recent_min,
+        "customers_total": len(customers),
+    }
+
+
+class OrderStatusRequest(BaseModel):
+    order_id: str
+    status: str  # preparing, ready, delivered, canceled
+
+
+@app.post("/api/order/status")
+async def update_order_status(req: OrderStatusRequest):
+    for o in orders:
+        if o["id"] == req.order_id:
+            o["status"] = req.status
+            o.setdefault("timeline", {})[req.status] = datetime.now().isoformat()
+            save_orders()
+            # Broadcast to kitchen WS clients
+            for ws in list(kitchen_clients):
+                try:
+                    await ws.send_text(json.dumps({"type": "status", "order": o}))
+                except Exception:
+                    kitchen_clients.discard(ws)
+            return {"ok": True, "order": o}
+    return {"ok": False, "error": "not found"}
+
+
+# ── Kitchen WebSocket clients ──
+kitchen_clients: set = set()
+
+
+@app.websocket("/ws/kitchen")
+async def kitchen_ws(ws: WebSocket):
+    await ws.accept()
+    kitchen_clients.add(ws)
+    try:
+        # Send initial snapshot
+        active = [o for o in orders if o.get("status") in ("preparing", "ready")]
+        await ws.send_text(json.dumps({"type": "snapshot", "orders": sorted(active, key=lambda x: x["created_at"], reverse=True)[:20]}))
+        while True:
+            msg = await ws.receive_text()
+            # kitchen sends ping / actions if needed
+            data = json.loads(msg)
+            if data.get("type") == "ping":
+                await ws.send_text(json.dumps({"type": "pong"}))
+    except WebSocketDisconnect:
+        pass
+    finally:
+        kitchen_clients.discard(ws)
+
+
+@app.post("/api/tts")
+async def text_to_speech(req: TTSRequest):
+    audio = await tts_speak(req.text)
+    if not audio:
+        return {"ok": False, "error": "TTS unavailable"}
+    return StreamingResponse(BytesIO(audio), media_type="audio/mpeg")
+
+
+class ChatRequest(BaseModel):
+    text: str
+    session_id: str
+    customer: str | None = None
+
+
+# ── Session store ─────────────────────────────────────────────
+# Each session has: history (list of messages), cart (list), customer, phase
+sessions: dict = {}
+
+def _get_session(sid: str):
+    if sid not in sessions:
+        sessions[sid] = {
+            "history": [],
+            "cart": [],  # [{id,name,price,qty,image}]
+            "customer": None,
+            "phase": "greeting",  # greeting -> ordering -> confirming -> done
+            "pending_confirm": False,
+            "last_mentioned": [],  # item_ids the assistant recently talked about (for "esse"/"aquele")
+        }
+    return sessions[sid]
+
+
+def _is_combo_item(name_low: str) -> bool:
+    """Detecta itens combo/composto (múltiplos produtos num nome só)."""
+    if "+" in name_low or "," in name_low:
+        return True
+    if name_low.startswith("combo") or " combo " in name_low:
+        return True
+    # muitas palavras curtas / composto (ex: "1 pão de alho + 1 fraldinha ...")
+    words = name_low.split()
+    if len(words) >= 6:
+        return True
+    return False
+
+
+def _extract_mentioned_items(text: str) -> list:
+    """
+    Retorna item_ids mencionados no texto.
+    Match forte por nome completo; fallback por palavra-chave escolhendo
+    APENAS UM item (o mais simples) por keyword — para evitar explodir combos.
+    """
+    if not text:
+        return []
+    text_low = text.lower()
+    strong = []       # full-name substring matches
+    strong_ids = set()
+    keyword_hits = {} # keyword -> best (id, name_len)
+
+    # PASS 1: full-name match (only non-combo items or user explicitly said "combo")
+    user_wants_combo = "combo" in text_low
+    user_wants_cru_p1 = re.search(r"\bcru\b|\bpra\s+levar\b|\bcongelad", text_low) is not None
+    for m in MENU:
+        name_low = m["name"].lower().strip()
+        if len(name_low) < 3:
+            continue
+        is_combo = _is_combo_item(name_low)
+        if is_combo and not user_wants_combo:
+            continue
+        if not user_wants_cru_p1 and re.search(r"\bcru\b|\bcrus\b", name_low):
+            continue
+        if name_low in text_low:
+            if m["id"] not in strong_ids:
+                strong.append(m["id"])
+                strong_ids.add(m["id"])
+
+    # PASS 2: keyword match — pick BEST menu item per keyword
+    # Penaliza "cru" (categoria separada de espetinhos crus) e prefere item mais curto
+    user_wants_cru = re.search(r"\bcru\b|\bpra\s+levar\b|\bcongelad", text_low) is not None
+    for m in MENU:
+        name_low = m["name"].lower().strip()
+        if _is_combo_item(name_low) and not user_wants_combo:
+            continue
+        # Skip espetinhos crus a menos que user peça explicitamente
+        if not user_wants_cru and re.search(r"\bcru\b|\bcrus\b", name_low):
+            continue
+        # tokens significativos: >=4 letras, ignora stop-words
+        stop = {"espetinho","espeto","porcao","porção","com","sem","de","da","do","na","no","para","pra","artesanal","natural","gelada","gelado","bovina","bovino"}
+        tokens = [t for t in re.findall(r"[a-zà-ÿ]{4,}", name_low) if t not in stop]
+        for tok in tokens:
+            if tok in text_low:
+                # Score: menor = melhor. Penaliza nomes longos.
+                score = len(name_low)
+                best = keyword_hits.get(tok)
+                if best is None or score < best[1]:
+                    keyword_hits[tok] = (m["id"], score)
+                break  # 1 keyword hit já basta pra esse item
+
+    # Merge strong (full-name) hits first, then keyword hits
+    result = list(strong)
+    seen = set(strong)
+    for tok, (iid, _) in keyword_hits.items():
+        if iid not in seen:
+            seen.add(iid)
+            result.append(iid)
+    return result
+
+
+SYSTEM_PROMPT = """Você é a Gabi, a atendente virtual do JM Espetinhos & Assados, em Itapeva-SP. É a IA-atendente pioneira da cidade.
+
+PERSONALIDADE (super importante):
+- Do interior de São Paulo, animada, brincalhona, gente boa
+- Faz piadinhas leves de vez em quando pra descontrair (é novidade na cidade, cliente vai se divertir)
+- Usa gírias BR: "opa", "beleza", "fechou", "mandou bem", "boa pedida", "show", "tranquilo", "diacho", "uai" (uma ou outra, sem exagerar)
+- Chama o cliente de "meu amigo", "meu chapa", "querido(a)" quando não sabe o nome
+- Frases CURTAS. No máximo 15 palavras por resposta. Falamos por VOZ, não texto.
+- Chama pelo nome sempre que souber
+- Se cliente pedir algo que não tem, brinca: "opa, isso é lá no Mc, aqui é churrasqueiro!"
+
+FLUXO NATURAL:
+1. Se ESTADO ATUAL mostra "Cliente: (ainda não sei o nome)": PERGUNTE simpático "E aí, como é seu nome?"
+2. Se ESTADO ATUAL mostra "Cliente: [algum nome]": JÁ SABE O NOME! NÃO pergunte nome de novo. Chame o cliente pelo nome direto.
+3. Quando cliente disser o nome, use set_name e responda "opa, prazer [nome]! O que vai ser hoje?"
+3. Ao adicionar item, seja natural: "Show, anotei!", "Fechado!", "Mandou bem, adicionei"
+4. Se cliente disser "só isso", "é isso", "pode ir", "manda ver", "fecha aí", "tá bom":
+   - Se carrinho VAZIO: brinca "Ué, ainda não pediu nada! O que vai querer?"
+   - Se tem itens: RESUMA rapidinho ("Então é 2 frango, 1 cerveja. Fecho?") e chame set_confirming
+5. Se cliente já estava confirmando E disser QUALQUER SIM (sim, isso mesmo, aham, tranquilo, fechou, pode, manda, beleza): chame confirm_order
+6. Se cliente disser "espera", "muda", "quero mais", "adiciona" durante confirmação: cancel_confirming e escuta o que ele quer
+
+REGRAS CRÍTICAS DE CARRINHO (NUNCA QUEBRE):
+- NUNCA invente itens fora do MENU
+- Use item_id EXATO
+- SÓ CHAME add_item pros itens que o CLIENTE MENCIONOU NESTA MENSAGEM. NÃO re-adicione itens que já estão no carrinho.
+- NUNCA chame clear_cart automaticamente. SÓ chame se cliente disser EXPLICITAMENTE: "cancela tudo", "esquece tudo", "começa de novo", "limpa o pedido". "Não vou beber" ou "não quero cerveja" NÃO é comando pra limpar carrinho, é só recusa de sugestão.
+- NUNCA chame remove_item sem cliente pedir EXPLICITAMENTE ("tira o X", "remove o X", "não quero mais o X").
+- Se cliente REJEITAR uma sugestão sua ("hoje não bebo", "não quero X"), apenas NÃO adicione essa sugestão. NÃO mexa em outros itens do carrinho.
+- NUNCA diga "pedido confirmado" antes de chamar confirm_order de verdade
+
+REGRAS DE INTERAÇÃO:
+- Se cliente perguntar recomendação, sugira o carro-chefe (espetinhos) + cerveja
+- Se cliente pedir CARDÁPIO / "o que vocês têm" / "quais as opções": CHAME show_menu() e diga curto "Tá aqui na tela, é só falar!". A tela mostra o cardápio pra ele ver.
+- Se cliente for VAGO ("quero um lanche", "quero comer algo", "tô com fome"): sugira 2-3 opções da categoria pra ele escolher. Ex: "Boa! Temos X-Burger doze reais, X-Frango vinte e cinco, ou X-Tudo trinta e dois. Qual bate?"
+- Se pedir só "espetinho" sem especificar: pergunta qual: "Show! Temos de alcatra, filé mignon, frango, coração, kafta. Qual vai?"
+- Se pedir "bebida" sem especificar: "Beleza! Cerveja gelada, chopp, refri ou suco natural?"
+- Se cliente perguntar preço: fale valor por extenso ("doze reais").
+- Varie suas respostas ao adicionar: "Show!", "Anotado!", "Mandou bem!", "Fechado!", "Boa pedida!"
+- Seja NATURAL, gente boa, brincalhona. Não seja robótica. Trate cada cliente como se fosse um amigo do bar.
+
+REGRAS DE FALA:
+- FALA NATURAL: nunca use símbolos ("×", "x", "c/", "s/", "R$", "#"). Escreva por extenso.
+- Concordância PT-BR: sempre respeite gênero e plural! "UMA cerveja gelada" (fem), "UM chopp gelado" (masc), "DOIS espetinhos" (plural masc), "DUAS kaftas" (plural fem). NUNCA "uma chopp" ou "uma hamburger".
+- Seu nome é GABI. NUNCA chame o CLIENTE de "Gabi". Se por algum motivo cliente parecer se apresentar como "Gabi", peça outro nome com humor: "Ê chapa, Gabi sou eu! Como é o seu?"
+
+CROSS-SELL INTELIGENTE (aumenta ticket médio):
+- Depois que cliente pedir 1-2 espetinhos e ainda não tem bebida: sugira "quer uma cervejinha gelada pra acompanhar?"
+- Depois que cliente tiver bebida mas sem acompanhamento e >20 reais: sugira "vai um pão de alho ou farofa também?"
+- Se cliente pedir bebida e não tem espetinho: sugira "e um espetinho pra petiscar? o de alcatra tá saindo muito!"
+- Só sugira uma coisa por vez. Se cliente disser "só isso" ou recusar = respeita.
+
+MENU (não invente, use item_id exato):
+{menu}
+"""
+
+
+def _build_menu_text():
+    return "\n".join([f"- {m['id']}: {m['name']} — R$ {m['price']:.2f} ({m['category']})" for m in MENU])
+
+
+def _menu_by_id(item_id: str):
+    for m in MENU:
+        if m["id"] == item_id:
+            return m
+    return None
+
+
+def _cart_summary(cart: list) -> str:
+    """Human-friendly summary with correct gender/plural for spoken output."""
+    if not cart:
+        return "vazio"
+    parts = []
+    for c in cart:
+        qty = c["qty"]
+        gender = c.get("gender", "m")
+        singular_name = c["name"]
+        plural_name = c.get("plural", singular_name + "s")
+        q_word = qty_word(qty, gender)
+        name = singular_name if qty == 1 else plural_name
+        parts.append(f"{q_word} {name}")
+    # Join with commas but final "e"
+    if len(parts) > 1:
+        return ", ".join(parts[:-1]) + " e " + parts[-1]
+    return parts[0]
+
+
+@app.post("/api/chat")
+async def chat(req: ChatRequest):
+    if not OPENAI_API_KEY:
+        return {"reply": "Desculpa, minha IA tá offline agora.", "cart": [], "phase": "error"}
+
+    sess = _get_session(req.session_id)
+    # Safety: don't accept blocked names from client
+    if req.customer and not sess["customer"]:
+        if req.customer.strip().lower() not in BLOCKED_NAMES:
+            sess["customer"] = req.customer
+
+    # If we already know the customer (face recognized), skip greeting phase
+    if sess["customer"] and sess["phase"] == "greeting":
+        sess["phase"] = "ordering"
+        print(f"   🎯 Cliente já conhecido ({sess['customer']}), pulando greeting → ordering")
+
+    # Seed assistant history when customer known but history empty, so GPT doesn't ask name
+    if sess["customer"] and not sess["history"]:
+        sess["history"].append({
+            "role": "assistant",
+            "content": f"Ê {sess['customer']}, boas! Tá de volta! O que vai ser hoje?"
+        })
+        print(f"   🌱 Seeded greeting for known customer")
+
+    print(f"\n💬 [{req.session_id[:8]}] {sess['customer'] or '(anon)'} phase={sess['phase']}")
+    print(f"   USER: {req.text!r}")
+    print(f"   CART BEFORE: {[(c['qty'], c['name']) for c in sess['cart']]}")
+
+    # Backend anti-echo: ignora se o texto contém frases típicas da Gabi
+    ECHO_PATTERNS = [
+        "não peguei", "nao peguei", "meu amigo", "meu chapa",
+        "falou", "tô aqui", "to aqui", "se precisar",
+        "jm espetinhos", "sou a gabi", "sou gabi",
+        "como é seu nome", "como e seu nome",
+        "o que vai ser hoje", "obrigada", "obrigado",
+        "mandei pra cozinha", "mandou bem", "boa pedida",
+        "quer uma cervejinha", "cliente chegou",
+    ]
+    if req.text and any(p in req.text.lower() for p in ECHO_PATTERNS):
+        # Não é um input real do cliente — é eco da Gabi. Não muda estado.
+        print(f"   🔕 ECHO IGNORED")
+        return {
+            "reply": "",  # not spoken
+            "cart": sess["cart"],
+            "phase": sess["phase"],
+            "customer": sess["customer"],
+            "actions": [],
+            "mentioned": sess.get("last_mentioned", []),
+            "confirmed_order": None,
+            "echo_ignored": True,
+        }
+
+
+    # ── Heuristic pre-processing (guardrails) ──
+    text_low = req.text.lower().strip()
+
+    # Cliente pede pra ATUALIZAR / CORRIGIR o nome — libera pra ele falar de novo
+    if sess["customer"] and re.search(
+        r"(atualiz|corrig|troca|muda|alter|não\s+é\s+esse|nao\s+e\s+esse|meu\s+nome\s+não|meu\s+nome\s+nao|nome\s+errado)",
+        text_low
+    ):
+        old = sess["customer"]
+        sess["customer"] = None
+        sess["phase"] = "greeting"
+        reply = f"Ih, foi mal! Como é seu nome de verdade então?"
+        sess["history"].append({"role": "user", "content": req.text})
+        sess["history"].append({"role": "assistant", "content": reply})
+        print(f"   🔄 Cliente pediu pra trocar nome ({old} → ?)")
+        return {
+            "reply": reply, "cart": sess["cart"], "phase": sess["phase"],
+            "customer": None, "actions": [{"type": "reset_customer"}],
+            "mentioned": sess.get("last_mentioned", []), "confirmed_order": None,
+        }
+
+    # Anti-Gabi: short-circuit se cliente tentar dizer que se chama Gabi/Gaby
+    if not sess["customer"]:
+        gabi_selfname_patterns = [
+            r"meu\s+nome\s+é\s+gab[iy]",
+            r"me\s+chamo\s+gab[iy]",
+            r"(eu\s+)?sou\s+(?:o\s+|a\s+)?gab[iy]",
+            r"pode\s+me\s+chamar\s+de\s+gab[iy]",
+        ]
+        for pat in gabi_selfname_patterns:
+            if re.search(pat, text_low):
+                reply = "Ê chapa, Gabi sou eu! Como é o seu nome de verdade?"
+                sess["history"].append({"role": "user", "content": req.text})
+                sess["history"].append({"role": "assistant", "content": reply})
+                print(f"   🚫 ANTI-GABI: bloqueou tentativa de nome '{req.text!r}'")
+                return {
+                    "reply": reply, "cart": sess["cart"], "phase": sess["phase"],
+                    "customer": None, "actions": [], "mentioned": sess.get("last_mentioned", []),
+                    "confirmed_order": None,
+                }
+
+    # "só isso" / "é isso" — vai pra confirming (Gabi resume)
+    CONFIRM_TRIGGERS = [
+        "só isso", "so isso", "é isso", "e isso", "só", "tá bom", "ta bom",
+        "acabou", "chega", "pronto", "encerrar"
+    ]
+    # Direct confirm — pula confirming e vai direto pra done (cliente já decidido)
+    DIRECT_CONFIRM = [
+        "pode mandar", "manda ver", "manda pra cozinha", "manda pra cozinh",
+        "pode fechar", "fecha aí", "fecha ai", "finaliza", "finalizar", "pode ir",
+        "manda o pedido", "envia", "manda logo",
+        "fechou", "fechado", "confirmado", "confirma pedido", "envia pedido",
+        "manda", "pode ir mandar", "manda a comida",
+    ]
+    YES_TRIGGERS = [
+        "sim", "isso", "isso mesmo", "confirmo", "confirmado", "confirma",
+        "pode", "pode sim", "pode mandar", "beleza", "fechou", "ok", "aham",
+        "uhum", "correto", "positivo", "manda", "tranquilo", "certo", "boa",
+        "é isso mesmo", "e isso mesmo", "isso ai", "isso aí", "fecha",
+        "vai", "vai sim", "manda ver", "por favor", "obrigado", "obrigada",
+        "só isso mesmo", "so isso mesmo", "eh", "é", "é isso", "e isso",
+        "manda aí", "manda ai", "fecha aí", "fecha ai", "pode fechar",
+        "tá bom", "ta bom", "tá ótimo", "ta otimo", "perfeito",
+    ]
+    NO_TRIGGERS = [
+        "não", "nao", "espera", "espera aí", "espera ai", "peraí", "perai",
+        "muda", "mudar", "quero mais", "adiciona", "tira", "remove", "cancela",
+        "esquece", "errou",
+    ]
+    # Menu request triggers
+    MENU_TRIGGERS = [
+        "cardápio", "cardapio", "menu", "quais são as opções", "quais as opções",
+        "quais sao as opcoes", "quais as opcoes", "o que vocês têm", "o que voces tem",
+        "o que tem", "que opções", "quais opções", "quais opcoes",
+        "me mostra", "mostra as opções", "mostra o cardapio", "mostra o cardápio",
+    ]
+    force_show_menu = any(t in text_low for t in MENU_TRIGGERS)
+    # Pronomes / referências a algo que Gabi acabou de mencionar
+    PRONOUN_TRIGGERS = [
+        "pode ser esse", "pode ser esses", "pode ser essa", "pode ser essas",
+        "quero esse", "quero esses", "quero essa", "quero essas",
+        "manda esse", "manda esses", "manda essa", "manda essas",
+        "esse mesmo", "essa mesma", "esses mesmos", "essas mesmas",
+        "esse aí", "esse ai", "essa aí", "essa ai",
+        "vai esse", "vai essa", "vai esses", "vai essas",
+        "esse", "essa", "aquele", "aquela",
+        "isso mesmo", "isso aí", "isso ai",
+        "essa é boa", "esse é bom",
+        "tá bom esse", "ta bom esse", "tá bom essa", "ta bom essa",
+        # Respostas curtas de aceite a sugestão (Gabi ofereceu → cliente aceita)
+        "pode ser", "pode ser sim", "beleza pode ser", "ok pode ser",
+        "manda sim", "manda uma", "manda um", "manda dois", "manda duas",
+        "traz um", "traz uma", "traz sim",
+        "quero sim", "vai sim", "aceito", "topo", "topa",
+        "boa ideia", "boa pedida",
+    ]
+
+    def _has_trigger(txt, triggers):
+        return any(t in txt for t in triggers)
+
+    # "Não" em ênfase (ex: "não, pode fechar") não é negação
+    # Se após "não" aparece um YES trigger, é ênfase
+    def _has_no_trigger(txt):
+        if not any(n in txt for n in NO_TRIGGERS):
+            return False
+        # Se também tem um YES ou DIRECT_CONFIRM logo depois, é ênfase
+        for yes in DIRECT_CONFIRM + YES_TRIGGERS:
+            if yes in txt and yes not in NO_TRIGGERS:
+                # Confere se o YES vem depois do "não"
+                for no in NO_TRIGGERS:
+                    idx_no = txt.find(no)
+                    idx_yes = txt.find(yes)
+                    if idx_no >= 0 and idx_yes > idx_no:
+                        return False  # é ênfase
+        return True
+
+    forced_phase_change = None
+    forced_confirm = False
+    forced_name = None
+
+    # Extract name if user says "meu nome é X" / "eu sou X" / "sou o X" / "me chamo X"
+    if not sess["customer"]:
+        name_patterns = [
+            r"meu\s+nome\s+é\s+([a-zà-ú]+)",
+            r"me\s+chamo\s+([a-zà-ú]+)",
+            r"eu\s+sou\s+(?:o\s+|a\s+)?([a-zà-ú]+)",
+            r"sou\s+(?:o\s+|a\s+)([a-zà-ú]+)",
+            r"pode\s+me\s+chamar\s+de\s+([a-zà-ú]+)",
+        ]
+        for pat in name_patterns:
+            m = re.search(pat, text_low)
+            if m:
+                raw_candidate = m.group(1).strip().lower()
+                # Bloqueia falsos positivos e nome da atendente
+                if raw_candidate in BLOCKED_NAMES:
+                    continue
+                candidate = normalize_name(raw_candidate)
+                if candidate and candidate.lower() not in ["um", "uma", "o", "a", "de", "com", "que", "aqui", "bem"]:
+                    forced_name = candidate
+                    break
+        # Fallback: single-word input (short) — treat as name if in greeting phase
+        if not forced_name and sess["phase"] == "greeting":
+            words = text_low.split()
+            if len(words) == 1 and words[0].isalpha() and len(words[0]) >= 3 and words[0] not in BLOCKED_NAMES:
+                forced_name = normalize_name(words[0])
+
+    # Pronoun resolution: "pode ser esse" / "quero esse" → add last mentioned items
+    # Só faz sentido em phase=ordering. Em "confirming", "pode ser" = confirmação do pedido.
+    forced_add_from_mention = []
+    if sess["phase"] == "ordering" and sess.get("last_mentioned") and _has_trigger(text_low, PRONOUN_TRIGGERS) and not _has_no_trigger(text_low):
+        # Add only the FIRST mentioned item (or all if plural pronoun)
+        plural = any(p in text_low for p in ["esses", "essas", "esses mesmos", "essas mesmas"])
+        if plural:
+            forced_add_from_mention = list(sess["last_mentioned"])
+        else:
+            forced_add_from_mention = [sess["last_mentioned"][0]]
+
+    if sess["cart"]:
+        # Direct confirmation (skip confirming step)
+        if _has_trigger(text_low, DIRECT_CONFIRM) and not _has_no_trigger(text_low):
+            forced_confirm = True
+            sess["phase"] = "confirming"
+        elif sess["phase"] == "ordering" and _has_trigger(text_low, CONFIRM_TRIGGERS) and not any(t in text_low for t in ["mais", "outro", "outra", "também", "tambem"]):
+            forced_phase_change = "confirming"
+        elif sess["phase"] == "confirming" and _has_trigger(text_low, YES_TRIGGERS) and not _has_no_trigger(text_low) and not forced_add_from_mention:
+            forced_confirm = True
+        elif sess["phase"] == "confirming" and _has_no_trigger(text_low):
+            forced_phase_change = "ordering"
+
+    try:
+        import openai
+        client = openai.OpenAI(api_key=OPENAI_API_KEY)
+
+        # Build system with current state
+        customer_txt = sess["customer"] or "(ainda não sei o nome)"
+        cart_txt = _cart_summary(sess["cart"])
+        phase = sess["phase"]
+
+        history_hint = ""
+        if sess["customer"] and sess["customer"] in customers:
+            hist = customers[sess["customer"]].get("history", [])[:3]
+            if hist:
+                past = "; ".join([", ".join(h.get("items", [])) for h in hist])
+                history_hint = f"\nHISTÓRICO PASSADO: já pediu antes: {past}"
+
+        last_mentioned_txt = ""
+        if sess.get("last_mentioned"):
+            names = [_menu_by_id(iid)["name"] for iid in sess["last_mentioned"] if _menu_by_id(iid)]
+            if names:
+                last_mentioned_txt = f"\nVOCÊ acabou de mencionar/recomendar: {', '.join(names)}. Se o cliente disser 'esse'/'aquele'/'pode ser esse', se refere a esses itens."
+
+        system = SYSTEM_PROMPT.format(menu=_build_menu_text()) + \
+                 f"\n\nESTADO ATUAL:\nCliente: {customer_txt}\nCarrinho: {cart_txt}\nFase: {phase}" + last_mentioned_txt + history_hint
+
+        tools = [
+            {"type": "function", "function": {
+                "name": "add_item",
+                "description": "Adiciona item ao carrinho. Use quando o cliente pedir explicitamente um item do menu.",
+                "parameters": {"type": "object", "properties": {
+                    "item_id": {"type": "string", "description": "ID exato do menu (ex: esp-frango, cerveja)"},
+                    "qty": {"type": "integer", "default": 1}
+                }, "required": ["item_id"]}
+            }},
+            {"type": "function", "function": {
+                "name": "remove_item",
+                "description": "Remove ou reduz quantidade de um item do carrinho",
+                "parameters": {"type": "object", "properties": {
+                    "item_id": {"type": "string"},
+                    "qty": {"type": "integer", "default": 1}
+                }, "required": ["item_id"]}
+            }},
+            {"type": "function", "function": {
+                "name": "set_name",
+                "description": "Salva o nome do cliente quando ele se apresenta",
+                "parameters": {"type": "object", "properties": {
+                    "name": {"type": "string"}
+                }, "required": ["name"]}
+            }},
+            {"type": "function", "function": {
+                "name": "set_confirming",
+                "description": "Marca fase de confirmação (só quando carrinho tem itens e cliente diz que é só isso)",
+                "parameters": {"type": "object", "properties": {}}
+            }},
+            {"type": "function", "function": {
+                "name": "cancel_confirming",
+                "description": "Volta pra ordering se cliente quer mudar algo",
+                "parameters": {"type": "object", "properties": {}}
+            }},
+            {"type": "function", "function": {
+                "name": "confirm_order",
+                "description": "Envia pedido pra cozinha DEFINITIVAMENTE. Só use quando fase = confirming e cliente disse sim.",
+                "parameters": {"type": "object", "properties": {}}
+            }},
+            {"type": "function", "function": {
+                "name": "clear_cart",
+                "description": "Limpa o carrinho",
+                "parameters": {"type": "object", "properties": {}}
+            }},
+            {"type": "function", "function": {
+                "name": "show_menu",
+                "description": "Abre o cardápio visualmente na tela quando cliente pede pra ver, quer opções ou pergunta 'o que vocês têm'. USE SEMPRE que cliente perguntar sobre cardápio/menu/opções.",
+                "parameters": {"type": "object", "properties": {
+                    "category": {"type": "string", "description": "Categoria específica pra destacar (Espetinhos, Lanches, Bebidas, Acompanhamentos). Deixe vazio pra mostrar tudo."}
+                }}
+            }},
+        ]
+
+        # Build messages: system + last 1 exchange for context (to avoid re-adding items)
+        messages = [{"role": "system", "content": system}]
+        # Only include the immediately previous assistant reply so GPT knows continuity
+        if sess["history"]:
+            last_assistant = None
+            for h in reversed(sess["history"]):
+                if h["role"] == "assistant":
+                    last_assistant = h
+                    break
+            if last_assistant:
+                messages.append({"role": "assistant", "content": last_assistant["content"]})
+        messages.append({"role": "user", "content": req.text})
+
+        resp = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=messages,
+            tools=tools,
+            tool_choice="auto",
+            temperature=0.5,
+            max_tokens=180,
+        )
+
+        msg = resp.choices[0].message
+        applied_actions = []
+        confirmed = False
+
+        if msg.tool_calls:
+            for tc in msg.tool_calls:
+                fname = tc.function.name
+                fargs = json.loads(tc.function.arguments or "{}")
+                if fname == "add_item":
+                    m = _menu_by_id(fargs.get("item_id", ""))
+                    if not m:
+                        continue
+                    qty = int(fargs.get("qty", 1))
+                    ex = next((c for c in sess["cart"] if c["id"] == m["id"]), None)
+                    if ex:
+                        ex["qty"] += qty
+                    else:
+                        sess["cart"].append({**m, "qty": qty})
+                    sess["phase"] = "ordering"
+                    applied_actions.append({"type": "add", "item_id": m["id"], "qty": qty})
+                elif fname == "remove_item":
+                    item_id = fargs.get("item_id")
+                    qty = int(fargs.get("qty", 1))
+                    for c in sess["cart"]:
+                        if c["id"] == item_id:
+                            c["qty"] -= qty
+                    sess["cart"] = [c for c in sess["cart"] if c["qty"] > 0]
+                    applied_actions.append({"type": "remove", "item_id": item_id})
+                elif fname == "set_name":
+                    raw = fargs.get("name") or ""
+                    if raw.strip().lower() in BLOCKED_NAMES:
+                        # Cliente tentou usar nome da atendente
+                        applied_actions.append({"type": "blocked_name", "raw": raw})
+                    else:
+                        name = normalize_name(raw)
+                        if name:
+                            sess["customer"] = name
+                            if sess["phase"] == "greeting":
+                                sess["phase"] = "ordering"
+                            applied_actions.append({"type": "set_name", "name": name})
+                elif fname == "set_confirming":
+                    if sess["cart"]:
+                        sess["phase"] = "confirming"
+                        applied_actions.append({"type": "phase", "phase": "confirming"})
+                elif fname == "cancel_confirming":
+                    sess["phase"] = "ordering"
+                    applied_actions.append({"type": "phase", "phase": "ordering"})
+                elif fname == "confirm_order":
+                    if sess["cart"] and sess["phase"] == "confirming":
+                        # Actually save order
+                        items = [{"id": c["id"], "name": c["name"], "qty": c["qty"], "price": c["price"], "total": c["price"] * c["qty"]} for c in sess["cart"]]
+                        total = sum(i["total"] for i in items)
+                        order = {
+                            "id": str(uuid.uuid4())[:8],
+                            "customer_id": sess["customer"] or "anonimo",
+                            "items": items,
+                            "total": total,
+                            "notes": "",
+                            "status": "preparing",
+                            "created_at": datetime.now().isoformat(),
+                        }
+                        orders.append(order)
+                        save_orders()
+                        if sess["customer"] and sess["customer"] in customers:
+                            names = [it["name"] for it in items]
+                            customers[sess["customer"]]["history"].insert(0, {"items": names, "total": total, "date": order["created_at"]})
+                            customers[sess["customer"]]["history"] = customers[sess["customer"]]["history"][:20]
+                            save_customers()
+                        sess["phase"] = "done"
+                        confirmed = True
+                        applied_actions.append({"type": "order_confirmed", "order": order})
+                        await broadcast_new_order(order)
+                elif fname == "clear_cart":
+                    sess["cart"] = []
+                    sess["phase"] = "ordering"
+                    applied_actions.append({"type": "clear"})
+                elif fname == "show_menu":
+                    cat = fargs.get("category") or ""
+                    applied_actions.append({"type": "show_menu", "category": cat})
+
+        reply = (msg.content or "").strip()
+
+        # ── Fix GPT that FORGETS to add items it mentions ──
+        # Se cliente disse "acrescenta X" / "adiciona X" / "coloca X" / "quero X também",
+        # e GPT não chamou add_item, forçar
+        add_intent = any(t in text_low for t in [
+            "acrescenta", "acrescente", "adiciona", "adicione",
+            "coloca", "coloque", "põe", "poe",
+            "quero também", "quero tambem", "quero mais", "e um", "e uma",
+        ])
+        if add_intent:
+            wanted_ids = _extract_mentioned_items(req.text)
+            cart_ids = {c["id"] for c in sess["cart"]}
+            for iid in wanted_ids:
+                if iid in cart_ids:
+                    continue
+                if any(a.get("type") == "add" and a.get("item_id") == iid for a in applied_actions):
+                    continue
+                m = _menu_by_id(iid)
+                if m:
+                    print(f"   🩹 FORCE-ADD (GPT forgot): {m['name']}")
+                    sess["cart"].append({**m, "qty": 1})
+                    sess["phase"] = "ordering"
+                    applied_actions.append({"type": "add", "item_id": m["id"], "qty": 1})
+
+        # ── Force show_menu if regex matched (or GPT called it) ──
+        if force_show_menu and not any(a["type"] == "show_menu" for a in applied_actions):
+            applied_actions.append({"type": "show_menu", "category": ""})
+        # If show_menu was set (either way) and reply is generic, use warm response
+        if any(a["type"] == "show_menu" for a in applied_actions):
+            low = (reply or "").lower().strip().rstrip(".!?")
+            generic = not reply or low in ["beleza", "ok", "certo", "show", "tranquilo", "claro"]
+            if generic:
+                warm_options = [
+                    "Tá aqui na tela! É só falar o que vai querer.",
+                    "Pronto, tá aí o cardápio. Fala o que bate a vontade!",
+                    "Olha aí! Qualquer coisa é só me dizer.",
+                ]
+                import random as _r
+                reply = _r.choice(warm_options)
+
+        # ── Apply forced items from pronoun resolution ──
+        if forced_add_from_mention and not any(a["type"] == "add" for a in applied_actions):
+            added_names = []
+            for iid in forced_add_from_mention:
+                m = _menu_by_id(iid)
+                if not m:
+                    continue
+                ex = next((c for c in sess["cart"] if c["id"] == m["id"]), None)
+                if ex:
+                    ex["qty"] += 1
+                else:
+                    sess["cart"].append({**m, "qty": 1})
+                sess["phase"] = "ordering"
+                added_names.append(m["name"])
+                applied_actions.append({"type": "add", "item_id": m["id"], "qty": 1})
+            if added_names and (not reply or reply.lower() in ["beleza.", "beleza", "ok"]):
+                reply = f"Show, adicionei {added_names[0]}! Mais alguma coisa?"
+
+        # ── Apply forced name (heuristic) if GPT didn't catch it ──
+        if forced_name and not sess["customer"]:
+            sess["customer"] = forced_name
+            sess["phase"] = "ordering"
+            applied_actions.append({"type": "set_name", "name": forced_name})
+
+        # If we just learned a name (either via GPT or heuristic) and reply is generic, warm it up
+        just_learned_name = any(a["type"] == "set_name" for a in applied_actions)
+        if just_learned_name:
+            name = sess["customer"]
+            generic = not reply or reply.lower().rstrip(".") in ["beleza", "ok", "certo", "pode falar", "show", "tranquilo"]
+            if generic and name:
+                reply = f"Opa, prazer {name}! O que vai ser hoje, meu amigo?"
+
+        # If GPT tried blocked name (Gabi), respond with humor and ask again
+        if any(a["type"] == "blocked_name" for a in applied_actions) and not sess["customer"]:
+            reply = "Ê chapa, Gabi sou eu! Como é o seu nome mesmo?"
+
+        # ── Apply forced state changes from heuristics ──
+        if forced_phase_change == "confirming" and sess["phase"] != "confirming" and sess["cart"]:
+            sess["phase"] = "confirming"
+            applied_actions.append({"type": "phase", "phase": "confirming"})
+            # Override reply to standard confirmation
+            reply = f"Então é {_cart_summary(sess['cart'])}. Confirma?"
+        elif forced_phase_change == "ordering" and sess["phase"] == "confirming":
+            sess["phase"] = "ordering"
+            applied_actions.append({"type": "phase", "phase": "ordering"})
+        elif forced_confirm and sess["cart"] and sess["phase"] == "confirming" and not confirmed:
+            # Manually confirm the order
+            items = [{"id": c["id"], "name": c["name"], "qty": c["qty"], "price": c["price"], "total": c["price"] * c["qty"]} for c in sess["cart"]]
+            total = sum(i["total"] for i in items)
+            order = {
+                "id": str(uuid.uuid4())[:8],
+                "customer_id": sess["customer"] or "anonimo",
+                "items": items,
+                "total": total,
+                "notes": "",
+                "status": "preparing",
+                "created_at": datetime.now().isoformat(),
+            }
+            orders.append(order)
+            save_orders()
+            if sess["customer"] and sess["customer"] in customers:
+                names = [it["name"] for it in items]
+                customers[sess["customer"]]["history"].insert(0, {"items": names, "total": total, "date": order["created_at"]})
+                customers[sess["customer"]]["history"] = customers[sess["customer"]]["history"][:20]
+                save_customers()
+            sess["phase"] = "done"
+            confirmed = True
+            applied_actions.append({"type": "order_confirmed", "order": order})
+            await broadcast_new_order(order)
+            reply = f"Fechou! Já mandei pra cozinha. Sua senha é #{order['id']}. Obrigada!"
+
+        # Sanity check: never say confirmed unless truly confirmed
+        if not confirmed:
+            lowered = reply.lower()
+            for bad in ["seu pedido foi confirmado", "pedido confirmado", "enviado pra cozinha", "enviado para cozinha", "já mandei", "mandei pra cozinha"]:
+                if bad in lowered:
+                    # Rewrite
+                    if sess["cart"] and sess["phase"] != "confirming":
+                        reply = f"Deixa eu confirmar: {_cart_summary(sess['cart'])}. Fecho o pedido?"
+                        sess["phase"] = "confirming"
+                        applied_actions.append({"type": "phase", "phase": "confirming"})
+                    break
+
+        # Fallback replies (variadas pra não ficar robótico)
+        import random
+        if not reply:
+            if confirmed:
+                reply = random.choice([
+                    "Fechou! Mandei pra cozinha. Obrigada!",
+                    "Show! Já tá na chapa, valeu!",
+                    "Beleza, tá indo! Aguenta aí que já sai!",
+                ])
+            elif applied_actions:
+                if any(a["type"] == "add" for a in applied_actions):
+                    reply = random.choice([
+                        "Anotado! Mais alguma coisa?",
+                        "Show! Vai querer mais alguma coisa?",
+                        "Fechado, tá aqui! Mais algo?",
+                        "Boa pedida! Mais alguma coisa?",
+                        "Beleza, adicionei. Vai algo mais?",
+                        "Mandou bem! Quer mais alguma?",
+                    ])
+                elif any(a["type"] == "phase" and a.get("phase") == "confirming" for a in applied_actions):
+                    reply = f"Então é: {_cart_summary(sess['cart'])}. Fecho pra você?"
+                else:
+                    reply = "Beleza."
+            else:
+                reply = "Pode falar, meu amigo."
+
+        # Update conversation history
+        sess["history"].append({"role": "user", "content": req.text})
+        sess["history"].append({"role": "assistant", "content": reply})
+
+        # Track items Gabi mentioned in this reply (for pronoun resolution next turn)
+        mentioned = _extract_mentioned_items(reply)
+        # Exclude items already in cart (customer wouldn't say "esse" about something already ordered)
+        cart_ids = {c["id"] for c in sess["cart"]}
+        mentioned_new = [m for m in mentioned if m not in cart_ids]
+        if mentioned_new:
+            sess["last_mentioned"] = mentioned_new
+
+        print(f"   GABI: {reply!r}")
+        print(f"   CART AFTER: {[(c['qty'], c['name']) for c in sess['cart']]}")
+        print(f"   ACTIONS: {applied_actions}")
+
+        return {
+            "reply": reply,
+            "cart": sess["cart"],
+            "phase": sess["phase"],
+            "customer": sess["customer"],
+            "actions": applied_actions,
+            "mentioned": sess.get("last_mentioned", []),
+            "confirmed_order": applied_actions[-1].get("order") if confirmed else None,
+        }
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        print(f"Chat error: {e}")
+        return {"reply": "Ops, tive um probleminha. Pode repetir?", "cart": sess["cart"], "phase": sess["phase"]}
+
+
+@app.post("/api/session/reset")
+async def reset_session(payload: dict):
+    sid = payload.get("session_id")
+    if sid in sessions:
+        del sessions[sid]
+    return {"ok": True}
+
+
+# WebSocket for live processing
+@app.websocket("/ws")
+async def websocket_endpoint(ws: WebSocket):
+    await ws.accept()
+    try:
+        while True:
+            msg = await ws.receive_text()
+            data = json.loads(msg)
+            if data.get("type") == "ping":
+                await ws.send_text(json.dumps({"type": "pong"}))
+                continue
+            if data.get("frame"):
+                img = decode_frame(data["frame"])
+                boxes, probs = face_detector.detect(img)
+                if boxes is not None and len(boxes) > 0:
+                    areas = [(b[2] - b[0]) * (b[3] - b[1]) for b in boxes]
+                    idx = int(np.argmax(areas))
+                    box = boxes[idx]
+                    prob = float(probs[idx]) if probs is not None else 1.0
+                    # Face size as % of frame (proxy for closeness / engagement)
+                    frame_area = img.size[0] * img.size[1]
+                    face_ratio = float(areas[idx] / frame_area) if frame_area else 0.0
+                    embedding = get_face_embedding(img, box)
+                    name, score = (None, 0.0) if embedding is None else recognize_face(embedding)
+                    # Engagement heuristic: face large AND high probability
+                    is_engaged = face_ratio > 0.05 and prob > 0.9
+                    await ws.send_text(json.dumps({
+                        "type": "face",
+                        "detected": True,
+                        "known": name is not None,
+                        "name": name,
+                        "confidence": round(score * 100, 1) if name else 0,
+                        "bbox": box.tolist(),
+                        "n_faces": len(boxes),
+                        "face_ratio": round(face_ratio, 4),
+                        "prob": round(prob, 3),
+                        "engaged": is_engaged,
+                    }))
+                else:
+                    await ws.send_text(json.dumps({"type": "face", "detected": False, "n_faces": 0, "engaged": False}))
+    except WebSocketDisconnect:
+        pass
+
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("main:app", host="0.0.0.0", port=8080, reload=False)
