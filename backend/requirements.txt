@@ -1,5 +1,5 @@
 fastapi
-uvicorn
+uvicorn[standard]
 python-multipart
 pydantic
 pillow
@@ -8,3 +8,6 @@ torch
 torchvision
 facenet-pytorch
 openai
+edge-tts
+websockets
+httpx

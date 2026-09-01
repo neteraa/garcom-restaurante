@@ -43,8 +43,8 @@ function useAvatarMode() {
   return mode || 'svg'
 }
 
-const API = 'http://localhost:8080'
-const WS = 'ws://localhost:8080/ws'
+const API = ''  // relative URLs — proxied via Vite dev server or nginx in Docker
+const WS = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws'
 
 // Generate a session id once per tab
 const SESSION_ID = 'sess-' + Math.random().toString(36).slice(2, 10)
@@ -705,6 +705,22 @@ export default function App() {
     return () => clearInterval(iv)
   }, [confirmedOrder, presenceDetected])
 
+  // ── AUTO-START: person standing in front for 3s → start session automatically ──
+  useEffect(() => {
+    const iv = setInterval(() => {
+      if (sessionActiveRef.current) return
+      if (confirmedOrder) return
+      if (!engagedSinceRef.current) return
+      const elapsed = Date.now() - engagedSinceRef.current
+      if (elapsed >= 3000) {
+        console.log('👁️ Auto-start: face engaged for 3s')
+        engagedSinceRef.current = null  // reset so we don't trigger again immediately
+        start()
+      }
+    }, 500)
+    return () => clearInterval(iv)
+  }, [confirmedOrder])  // eslint-disable-line react-hooks/exhaustive-deps
+
   const total = cart.reduce((a, c) => a + c.price * c.qty, 0)
   const grouped = menu.reduce((acc, it) => {
     (acc[it.category] = acc[it.category] || []).push(it); return acc
@@ -782,7 +798,7 @@ export default function App() {
             {step === 'listening' && <><Mic size={14} /> ESCUTANDO...</>}
             {step === 'thinking' && <>🧠 PENSANDO...</>}
             {step === 'speaking' && <><Volume2 size={14} /> FALANDO</>}
-            {step === 'idle' && !confirmedOrder && (presenceDetected ? '👋 OI, CHEGA PERTO!' : '💬 CHEGA PRA FALAR COMIGO')}
+            {step === 'idle' && !confirmedOrder && (presenceDetected ? '👁️ TE VEJ! COMEÇANDO...' : '💬 CHEGA PRA FALAR COMIGO')}
             {phase === 'confirming' && step !== 'speaking' && <>⚠️ CONFIRME O PEDIDO</>}
             {phase === 'done' && orderId && <>✅ SENHA #{orderId}</>}
           </div>
@@ -811,11 +827,11 @@ export default function App() {
             setTriggerHint(false)
             start()
           }}>
-            <div className="th-mic">🎙️</div>
+            <div className="th-mic">{presenceDetected ? '👋' : '🎙️'}</div>
             <div className="th-text">
-              <div className="th-line1">Diga em voz alta:</div>
-              <div className="th-line2">"Quero fazer um pedido"</div>
-              <div className="th-hint">ou clique aqui pra começar</div>
+              <div className="th-line1">{presenceDetected ? 'Oi! Já te vi aqui!' : 'Diga em voz alta:'}</div>
+              <div className="th-line2">{presenceDetected ? 'Começando em instantes...' : '"Quero fazer um pedido"'}</div>
+              <div className="th-hint">ou toque aqui pra começar agora</div>
             </div>
           </div>
         )}

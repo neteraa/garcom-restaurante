@@ -1,9 +1,12 @@
 node_modules/
 __pycache__/
 *.pyc
+*.pyo
 venv/
 .venv/
 .DS_Store
 .env
 backend/.env
 frontend/.env
+# Build output
+frontend/dist/

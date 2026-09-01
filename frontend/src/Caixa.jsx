@@ -1,8 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { Flame, DollarSign, ShoppingBag, TrendingUp, Users, Clock, Activity, Trophy } from 'lucide-react'
 
-const API = 'http://localhost:8080'
-const WS = 'ws://localhost:8080/ws/kitchen' // reaproveita eventos de novo pedido / status
+const API = ''
+const WS = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws/kitchen'
 
 const fmtBRL = (v) => (v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 const fmtTime = (iso) => {

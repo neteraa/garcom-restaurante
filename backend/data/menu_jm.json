@@ -3,7 +3,7 @@
     {
       "id": "batata-com-mussarela-e-cupim",
       "name": "BATATA com MUSSARELA e CUPIM",
-      "plural": "BATATA com MUSSARELA e CUPIMs",
+      "plural": "Batatas com MUSSARELA e CUPIM",
       "gender": "f",
       "price": 38.99,
       "category": "Novidade",
@@ -15,7 +15,7 @@
     {
       "id": "porcao-batata-200g",
       "name": "PORÇÃO BATATA 200g",
-      "plural": "PORÇÃO BATATA 200gs",
+      "plural": "Porções BATATA 200g",
       "gender": "f",
       "price": 10.0,
       "category": "Novidade",
@@ -26,7 +26,7 @@
     {
       "id": "espetinho-de-fraldinha",
       "name": "ESPETINHO DE FRALDINHA",
-      "plural": "ESPETINHO DE FRALDINHAs",
+      "plural": "Espetinhos DE FRALDINHA",
       "gender": "m",
       "price": 9.0,
       "category": "Precinho Da Semana",
@@ -38,7 +38,7 @@
     {
       "id": "queijo-coalho",
       "name": "QUEIJO COALHO",
-      "plural": "QUEIJO COALHOs",
+      "plural": "Queijos COALHO",
       "gender": "m",
       "price": 9.0,
       "category": "Precinho Da Semana",
@@ -50,7 +50,7 @@
     {
       "id": "espetinho-de-alcatra",
       "name": "ESPETINHO DE ALCATRA",
-      "plural": "ESPETINHO DE ALCATRAs",
+      "plural": "Espetinhos DE ALCATRA",
       "gender": "m",
       "price": 9.0,
       "category": "Precinho Da Semana",
@@ -61,7 +61,7 @@
     {
       "id": "jm-burger-200g-de-batata",
       "name": "JM BURGER + 200g DE BATATA",
-      "plural": "JM BURGER + 200g DE BATATAs",
+      "plural": "JM Burgers + 200g de Batata",
       "gender": "m",
       "price": 31.95,
       "category": "Combos Promocionais",
@@ -73,7 +73,7 @@
     {
       "id": "jm-bacon-200g-de-batata",
       "name": "JM BACON + 200g DE BATATA",
-      "plural": "JM BACON + 200g DE BATATAs",
+      "plural": "JM Bacons + 200g de Batata",
       "gender": "m",
       "price": 35.2,
       "category": "Combos Promocionais",
@@ -85,7 +85,7 @@
     {
       "id": "jm-duplo-bacon-200g-de-batata",
       "name": "JM DUPLO BACON + 200g DE BATATA",
-      "plural": "JM DUPLO BACON + 200g DE BATATAs",
+      "plural": "JM Duplo Bacons + 200g de Batata",
       "gender": "m",
       "price": 44.9,
       "category": "Combos Promocionais",
@@ -97,7 +97,7 @@
     {
       "id": "combo-10-espetinhos-de-fraldinha",
       "name": "Combo 10 Espetinhos de Fraldinha",
-      "plural": "Combo 10 Espetinhos de Fraldinhas",
+      "plural": "Combo 10 Espetinhos de Fraldinha",
       "gender": "m",
       "price": 81.0,
       "category": "⭐️ Mais Vendidos",
@@ -121,7 +121,7 @@
     {
       "id": "combo-5-espetinhos-de-picanha-bovina",
       "name": "Combo 5 Espetinhos de Picanha Bovina",
-      "plural": "Combo 5 Espetinhos de Picanha Bovinas",
+      "plural": "Combo 5 Espetinhos de Picanha Bovina",
       "gender": "m",
       "price": 62.7,
       "category": "⭐️ Mais Vendidos",
@@ -181,7 +181,7 @@
     {
       "id": "maionese-artesanal",
       "name": "Maionese Artesanal",
-      "plural": "Maionese Artesanals",
+      "plural": "Maioneses Artesanais",
       "gender": "m",
       "price": 5.0,
       "category": "Lanches",
@@ -193,7 +193,7 @@
     {
       "id": "pao-brioche",
       "name": "pao brioche",
-      "plural": "pao brioches",
+      "plural": "Pães brioche",
       "gender": "m",
       "price": 4.5,
       "category": "Lanches",
@@ -203,7 +203,7 @@
     {
       "id": "combo-jm-burguer-bacon-batata-frita-200g",
       "name": "combo JM burguer bacon + batata frita 200g + coca lata 350ml",
-      "plural": "combo JM burguer bacon + batata frita 200g + coca lata 350mls",
+      "plural": "combo JM burguer bacon + batata frita 200g + coca lata 350ml",
       "gender": "m",
       "price": 43.99,
       "category": "Lanches",
@@ -214,7 +214,7 @@
     {
       "id": "jm-duplo-bacon-batata-frita-200g-coca-la",
       "name": "JM duplo bacon + batata frita 200g + coca lata 350ml",
-      "plural": "JM duplo bacon + batata frita 200g + coca lata 350mls",
+      "plural": "JM Duplo Bacon + Batata Frita 200g + Coca Lata 350ml",
       "gender": "m",
       "price": 53.99,
       "category": "Lanches",
@@ -225,7 +225,7 @@
     {
       "id": "combo-jm-salada-batata-de-0-200g",
       "name": "combo JM salada + batata de 0,200g",
-      "plural": "combo JM salada + batata de 0,200gs",
+      "plural": "combo JM salada + batata de 0,200g",
       "gender": "m",
       "price": 35.9,
       "category": "Lanches",
@@ -234,7 +234,7 @@
     {
       "id": "combo-jm-duplo-batata-0-200g",
       "name": "combo JM duplo+ batata 0,200g",
-      "plural": "combo JM duplo+ batata 0,200gs",
+      "plural": "combo JM duplo+ batata 0,200g",
       "gender": "m",
       "price": 45.99,
       "category": "Lanches",
@@ -243,7 +243,7 @@
     {
       "id": "combo-jm-costela",
       "name": "combo  JM costela",
-      "plural": "combo  JM costelas",
+      "plural": "combo  JM costela",
       "gender": "m",
       "price": 37.99,
       "category": "Lanches",
@@ -252,7 +252,7 @@
     {
       "id": "jm-cupim",
       "name": "jm cupim",
-      "plural": "jm cupims",
+      "plural": "JM Cupins",
       "gender": "m",
       "price": 33.0,
       "category": "Lanches",
@@ -261,7 +261,7 @@
     {
       "id": "combo-1-fraldinha-1-alcatra-1-pao-de-alh",
       "name": "combo 1 fraldinha 1 alcatra 1 pão de alho 1 coca cola lata 350ml",
-      "plural": "combo 1 fraldinha 1 alcatra 1 pão de alho 1 coca cola lata 350mls",
+      "plural": "combo 1 fraldinha 1 alcatra 1 pão de alho 1 coca cola lata 350ml",
       "gender": "m",
       "price": 35.79,
       "category": "Combos Promocionais",
@@ -270,7 +270,7 @@
     {
       "id": "costela-bovina-com-osso",
       "name": "Costela bovina com osso",
-      "plural": "Costela bovina com ossos",
+      "plural": "Costelas Bovinas com Osso",
       "gender": "m",
       "price": 9.0,
       "category": "Espetinhos",
@@ -281,7 +281,7 @@
     {
       "id": "espetinho-de-picanha-bovina-argentina",
       "name": "Espetinho de picanha bovina (Argentina)",
-      "plural": "Espetinho de picanha bovina (Argentina)s",
+      "plural": "Espetinhos de picanha bovina (Argentina)",
       "gender": "m",
       "price": 13.5,
       "category": "Espetinhos",
@@ -292,7 +292,7 @@
     {
       "id": "espetinho-de-panceta-suina",
       "name": "Espetinho de panceta suína",
-      "plural": "Espetinho de panceta suínas",
+      "plural": "Espetinhos de panceta suína",
       "gender": "m",
       "price": 9.0,
       "category": "Espetinhos",
@@ -304,7 +304,7 @@
     {
       "id": "espetinho-de-kafta-com-queijo",
       "name": "Espetinho de kafta com queijo",
-      "plural": "Espetinho de kafta com queijos",
+      "plural": "Espetinhos de kafta com queijo",
       "gender": "m",
       "price": 9.0,
       "category": "Espetinhos",
@@ -316,7 +316,7 @@
     {
       "id": "espetinho-misto-fraldinha-bovina-frango",
       "name": "Espetinho Misto (Fraldinha bovina / Frango)",
-      "plural": "Espetinho Misto (Fraldinha bovina / Frango)s",
+      "plural": "Espetinhos Misto (Fraldinha bovina / Frango)",
       "gender": "m",
       "price": 8.5,
       "category": "Espetinhos",
@@ -328,7 +328,7 @@
     {
       "id": "kafta-c-queijo-e-pimenta-biquinho",
       "name": "Kafta c/queijo e pimenta biquinho",
-      "plural": "Kafta c/queijo e pimenta biquinhos",
+      "plural": "Kaftas c/queijo e pimenta biquinho",
       "gender": "f",
       "price": 9.5,
       "category": "Espetinhos",
@@ -339,7 +339,7 @@
     {
       "id": "espetinho-de-cordeiro",
       "name": "Espetinho de cordeiro",
-      "plural": "Espetinho de cordeiros",
+      "plural": "Espetinhos de cordeiro",
       "gender": "m",
       "price": 13.75,
       "category": "Espetinhos",
@@ -351,7 +351,7 @@
     {
       "id": "espetinho-de-tulipa",
       "name": "Espetinho de tulipa",
-      "plural": "Espetinho de tulipas",
+      "plural": "Espetinhos de tulipa",
       "gender": "m",
       "price": 9.0,
       "category": "Espetinhos",
@@ -363,7 +363,7 @@
     {
       "id": "medalhao-de-frango-e-bacon",
       "name": "Medalhão de frango e bacon",
-      "plural": "Medalhão de frango e bacons",
+      "plural": "Medalhões de frango e bacon",
       "gender": "m",
       "price": 9.8,
       "category": "Espetinhos",
@@ -374,7 +374,7 @@
     {
       "id": "espetinho-de-frango",
       "name": "Espetinho de Frango",
-      "plural": "Espetinho de Frangos",
+      "plural": "Espetinhos de Frango",
       "gender": "m",
       "price": 9.0,
       "category": "Espetinhos",
@@ -386,7 +386,7 @@
     {
       "id": "espetinho-de-pao-de-alho-santa-massa",
       "name": "Espetinho de pão de alho (santa massa)",
-      "plural": "Espetinho de pão de alho (santa massa)s",
+      "plural": "Espetinhos de pão de alho (santa massa)",
       "gender": "m",
       "price": 7.0,
       "category": "Espetinhos",
@@ -398,7 +398,7 @@
     {
       "id": "maionese-e-farofa-artesanal-da-casa",
       "name": "Maionese e farofa artesanal da casa",
-      "plural": "Maionese e farofa artesanal da casas",
+      "plural": "Maioneses e farofa artesanal da casa",
       "gender": "m",
       "price": 5.0,
       "category": "Espetinhos",
@@ -410,7 +410,7 @@
     {
       "id": "espetinho-de-coracao-de-frango",
       "name": "Espetinho de Coração de Frango",
-      "plural": "Espetinho de Coração de Frangos",
+      "plural": "Espetinhos de Coração de Frango",
       "gender": "m",
       "price": 9.5,
       "category": "Espetinhos",
@@ -421,7 +421,7 @@
     {
       "id": "espetinho-de-coxa-dessossada",
       "name": "Espetinho de Coxa Dessossada",
-      "plural": "Espetinho de Coxa Dessossadas",
+      "plural": "Espetinhos de Coxa Dessossada",
       "gender": "m",
       "price": 9.0,
       "category": "Espetinhos",
@@ -432,7 +432,7 @@
     {
       "id": "espetinho-de-camarao",
       "name": "Espetinho de Camarão",
-      "plural": "Espetinho de Camarãos",
+      "plural": "Espetinhos de Camarão",
       "gender": "m",
       "price": 15.0,
       "category": "Espetinhos",
@@ -443,7 +443,7 @@
     {
       "id": "meat-bacon-cheddar",
       "name": "Meat Bacon Cheddar",
-      "plural": "Meat Bacon Cheddars",
+      "plural": "Meat Bacons Cheddar",
       "gender": "m",
       "price": 13.5,
       "category": "Espetinhos",
@@ -454,7 +454,7 @@
     {
       "id": "meat-bacon-catupiry",
       "name": "Meat Bacon Catupiry",
-      "plural": "Meat Bacon Catupirys",
+      "plural": "Meat Bacons Catupiry",
       "gender": "m",
       "price": 13.5,
       "category": "Espetinhos",
@@ -465,7 +465,7 @@
     {
       "id": "limao",
       "name": "limão",
-      "plural": "limãos",
+      "plural": "Limões",
       "gender": "m",
       "price": 0.75,
       "category": "Espetinhos",
@@ -474,7 +474,7 @@
     {
       "id": "farofa",
       "name": "farofa",
-      "plural": "farofas",
+      "plural": "Farofas",
       "gender": "m",
       "price": 4.5,
       "category": "Espetinhos",
@@ -483,7 +483,7 @@
     {
       "id": "espetinho-de-sambiquira",
       "name": "espetinho de sambiquira",
-      "plural": "espetinho de sambiquiras",
+      "plural": "Espetinhos de sambiquira",
       "gender": "m",
       "price": 6.5,
       "category": "Espetinhos",
@@ -492,7 +492,7 @@
     {
       "id": "espeto-medalhao-romeu-e-julieta",
       "name": "espeto medalhão romeu e julieta",
-      "plural": "espeto medalhão romeu e julietas",
+      "plural": "Espetos medalhão romeu e julieta",
       "gender": "m",
       "price": 15.5,
       "category": "Espetinhos",
@@ -501,7 +501,7 @@
     {
       "id": "queijo-qualho-doce-de-leite",
       "name": "queijo qualho doce de leite",
-      "plural": "queijo qualho doce de leites",
+      "plural": "Queijos qualho doce de leite",
       "gender": "m",
       "price": 11.5,
       "category": "Espetinhos",
@@ -510,7 +510,7 @@
     {
       "id": "fraldinha-bovina-cru",
       "name": "Fraldinha bovina cru",
-      "plural": "Fraldinha bovina crus",
+      "plural": "Fraldinhas bovina cru",
       "gender": "m",
       "price": 6.4,
       "category": "Espetinhos Cru",
@@ -519,7 +519,7 @@
     {
       "id": "alcatra-bovina-cru",
       "name": "Alcatra bovina cru",
-      "plural": "Alcatra bovina crus",
+      "plural": "Alcatras bovina cru",
       "gender": "m",
       "price": 6.7,
       "category": "Espetinhos Cru",
@@ -528,7 +528,7 @@
     {
       "id": "picanha-argentina-cru",
       "name": "Picanha argentina cru",
-      "plural": "Picanha argentina crus",
+      "plural": "Picanhas argentina cru",
       "gender": "m",
       "price": 11.75,
       "category": "Espetinhos Cru",
@@ -537,7 +537,7 @@
     {
       "id": "kafta-cru",
       "name": "Kafta cru",
-      "plural": "Kafta crus",
+      "plural": "Kaftas cru",
       "gender": "f",
       "price": 7.0,
       "category": "Espetinhos Cru",
@@ -546,7 +546,7 @@
     {
       "id": "panceta-suina-cru",
       "name": "Panceta suína cru",
-      "plural": "Panceta suína crus",
+      "plural": "Pancetas suína cru",
       "gender": "m",
       "price": 6.0,
       "category": "Espetinhos Cru",
@@ -555,7 +555,7 @@
     {
       "id": "tulipa-cru",
       "name": "Tulipa cru",
-      "plural": "Tulipa crus",
+      "plural": "Tulipas cru",
       "gender": "m",
       "price": 6.0,
       "category": "Espetinhos Cru",
@@ -564,7 +564,7 @@
     {
       "id": "coracaozinho-cru",
       "name": "Coraçãozinho cru",
-      "plural": "Coraçãozinho crus",
+      "plural": "Coraçõezinhos cru",
       "gender": "m",
       "price": 6.8,
       "category": "Espetinhos Cru",
@@ -573,7 +573,7 @@
     {
       "id": "file-de-peito-cubos-cru",
       "name": "Filé de peito cubos cru",
-      "plural": "Filé de peito cubos crus",
+      "plural": "Filés de peito cubos cru",
       "gender": "m",
       "price": 5.9,
       "category": "Espetinhos Cru",
@@ -582,7 +582,7 @@
     {
       "id": "coxa-desossada-cru",
       "name": "Coxa desossada cru",
-      "plural": "Coxa desossada crus",
+      "plural": "Coxas desossada cru",
       "gender": "m",
       "price": 7.0,
       "category": "Espetinhos Cru",
@@ -591,7 +591,7 @@
     {
       "id": "linguica-perdigao-na-brasa-cru",
       "name": "Linguiça Perdigão na brasa cru",
-      "plural": "Linguiça Perdigão na brasa crus",
+      "plural": "Linguiças Perdigão na brasa cru",
       "gender": "f",
       "price": 5.25,
       "category": "Espetinhos Cru",
@@ -600,7 +600,7 @@
     {
       "id": "camarao-cru",
       "name": "Camarão cru",
-      "plural": "Camarão crus",
+      "plural": "Camarões cru",
       "gender": "m",
       "price": 12.0,
       "category": "Espetinhos Cru",
@@ -609,7 +609,7 @@
     {
       "id": "pao-de-alho-cru",
       "name": "Pão de alho cru",
-      "plural": "Pão de alho crus",
+      "plural": "Pães de alho cru",
       "gender": "m",
       "price": 5.0,
       "category": "Espetinhos Cru",
@@ -618,7 +618,7 @@
     {
       "id": "2-espetinhos-de-alcatra-bovina-e-1-coca-",
       "name": "2 Espetinhos de alcatra bovina e 1 coca lata 350ml",
-      "plural": "2 Espetinhos de alcatra bovina e 1 coca lata 350mls",
+      "plural": "2 Espetinhos de Alcatra Bovina e 1 Coca Lata 350ml",
       "gender": "m",
       "price": 23.74,
       "category": "Sugestão Da Casa",
@@ -629,7 +629,7 @@
     {
       "id": "coca-lata-350ml-1-espetinho-de-alcatra-1",
       "name": "Coca lata 350ml 1 espetinho de alcatra, 1 espetinho de fraldinha e 1 pão de alho",
-      "plural": "Coca lata 350ml 1 espetinho de alcatra, 1 espetinho de fraldinha e 1 pão de alhos",
+      "plural": "Coca Lata 350ml + Espetinhos e Pão de Alho",
       "gender": "f",
       "price": 32.18,
       "category": "Sugestão Da Casa",
@@ -640,7 +640,7 @@
     {
       "id": "2-pao-de-alho-2-fraldinha-bovina-2-frang",
       "name": "2 Pão de alho + 2 Fraldinha bovina + 2 Frango + 2 Skol 350 ml.",
-      "plural": "2 Pão de alho + 2 Fraldinha bovina + 2 Frango + 2 Skol 350 ml.s",
+      "plural": "2 Pão de alho + 2 Fraldinha bovina + 2 Frango + 2 Skol 350 ml.",
       "gender": "m",
       "price": 64.9,
       "category": "Sugestão Da Casa",
@@ -652,7 +652,7 @@
     {
       "id": "1-pao-de-alho-1-fraldinha-bovina-1-frang",
       "name": "1 Pão de alho + 1 Fraldinha bovina + 1 Frango + Refrigerante Coca-Cola 350 ml.",
-      "plural": "1 Pão de alho + 1 Fraldinha bovina + 1 Frango + Refrigerante Coca-Cola 350 ml.s",
+      "plural": "1 Pão de alho + 1 Fraldinha bovina + 1 Frango + Refrigerante Coca-Cola 350 ml.",
       "gender": "m",
       "price": 32.45,
       "category": "Sugestão Da Casa",
@@ -664,7 +664,7 @@
     {
       "id": "1-espetinho-de-alcatra-1-espetinho-de-qu",
       "name": "1 Espetinho de alcatra, 1 espetinho de queijo coalho Quatá e uma coca lata 350ml",
-      "plural": "1 Espetinho de alcatra, 1 espetinho de queijo coalho Quatá e uma coca lata 350mls",
+      "plural": "1 Espetinho de alcatra, 1 espetinho de queijo coalho Quatá e uma coca lata 350ml",
       "gender": "m",
       "price": 25.53,
       "category": "Sugestão Da Casa",
@@ -675,7 +675,7 @@
     {
       "id": "1-kafta-com-queijo-1-fraldinha-bovina-1-",
       "name": "1 kafta com queijo + 1 Fraldinha bovina + 1 Linguiça + 1 coração de frango",
-      "plural": "1 kafta com queijo + 1 Fraldinha bovina + 1 Linguiça + 1 coração de frangos",
+      "plural": "1 kafta com queijo + 1 Fraldinha bovina + 1 Linguiça + 1 coração de frango",
       "gender": "m",
       "price": 37.03,
       "category": "Sugestão Da Casa",
@@ -730,7 +730,7 @@
     {
       "id": "petit-gateau",
       "name": "petit gateau",
-      "plural": "petit gateaus",
+      "plural": "Petit Gateaux",
       "gender": "m",
       "price": 25.0,
       "category": "Sobremesas",
@@ -739,7 +739,7 @@
     {
       "id": "pudim-espeto",
       "name": "pudim espeto",
-      "plural": "pudim espetos",
+      "plural": "Pudins espeto",
       "gender": "m",
       "price": 12.5,
       "category": "Sobremesas",
@@ -748,7 +748,7 @@
     {
       "id": "coca-600",
       "name": "coca 600",
-      "plural": "coca 600s",
+      "plural": "Cocas 600",
       "gender": "f",
       "price": 10.5,
       "category": "Bebidas",
@@ -757,7 +757,7 @@
     {
       "id": "kapo",
       "name": "kapo",
-      "plural": "kapos",
+      "plural": "Kapos",
       "gender": "m",
       "price": 4.0,
       "category": "Bebidas",
@@ -766,7 +766,7 @@
     {
       "id": "suco-natural",
       "name": "suco natural",
-      "plural": "suco naturals",
+      "plural": "Sucos Naturais",
       "gender": "m",
       "price": 10.0,
       "category": "Bebidas",
@@ -775,7 +775,7 @@
     {
       "id": "del-vale-laranja",
       "name": "Del vale laranja",
-      "plural": "Del vale laranjas",
+      "plural": "Del Vale Laranjas",
       "gender": "m",
       "price": 6.0,
       "category": "Bebidas",
@@ -784,7 +784,7 @@
     {
       "id": "ice",
       "name": "ice",
-      "plural": "ices",
+      "plural": "Ices",
       "gender": "m",
       "price": 12.0,
       "category": "Bebidas",
@@ -793,7 +793,7 @@
     {
       "id": "coca-cola-de-1500",
       "name": "coca cola de 1500",
-      "plural": "coca cola de 1500s",
+      "plural": "Cocas Cola de 1500",
       "gender": "f",
       "price": 15.0,
       "category": "Bebidas",
@@ -802,7 +802,7 @@
     {
       "id": "del-vale-uva",
       "name": "del vale uva",
-      "plural": "del vale uvas",
+      "plural": "Del Vale Uvas",
       "gender": "m",
       "price": 6.0,
       "category": "Bebidas",
@@ -811,7 +811,7 @@
     {
       "id": "amistel-drink",
       "name": "amistel  drink",
-      "plural": "amistel  drinks",
+      "plural": "Amistel Drinks",
       "gender": "m",
       "price": 7.0,
       "category": "Bebidas",
@@ -820,7 +820,7 @@
     {
       "id": "refrigerante-fanta-2-litro",
       "name": "refrigerante fanta 2 litro",
-      "plural": "refrigerante fanta 2 litros",
+      "plural": "Refrigerantes fanta 2 litro",
       "gender": "m",
       "price": 14.0,
       "category": "Bebidas",
@@ -829,7 +829,7 @@
     {
       "id": "michela-long-nek",
       "name": "michela long nek",
-      "plural": "michela long neks",
+      "plural": "Michelas Long Nek",
       "gender": "m",
       "price": 12.0,
       "category": "Bebidas",
@@ -838,7 +838,7 @@
     {
       "id": "caipirinha",
       "name": "caipirinha",
-      "plural": "caipirinhas",
+      "plural": "Caipirinhas",
       "gender": "m",
       "price": 17.0,
       "category": "Bebidas",
@@ -847,7 +847,7 @@
     {
       "id": "coca-cola-mini-pet-200ml",
       "name": "coca cola mini pet 200ml",
-      "plural": "coca cola mini pet 200mls",
+      "plural": "Cocas Cola Mini Pet 200ml",
       "gender": "f",
       "price": 3.5,
       "category": "Bebidas",
@@ -856,7 +856,7 @@
     {
       "id": "gatorade",
       "name": "gatorade",
-      "plural": "gatorades",
+      "plural": "Gatorades",
       "gender": "m",
       "price": 9.5,
       "category": "Bebidas",
@@ -865,7 +865,7 @@
     {
       "id": "spaten-600",
       "name": "Spaten 600",
-      "plural": "Spaten 600s",
+      "plural": "Spatens 600",
       "gender": "m",
       "price": 12.5,
       "category": "Cervejas 600Ml",
@@ -874,7 +874,7 @@
     {
       "id": "cu-de-burro",
       "name": "cu de burro",
-      "plural": "cu de burros",
+      "plural": "cus de burro",
       "gender": "m",
       "price": 6.0,
       "category": "Cervejas 600Ml",

@@ -1,8 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { Flame, Clock, CheckCircle2, Bell, PackageCheck } from 'lucide-react'
 
-const API = 'http://localhost:8080'
-const WS = 'ws://localhost:8080/ws/kitchen'
+const API = ''
+const WS = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws/kitchen'
 
 const fmt = (iso) => {
   if (!iso) return '--:--'
