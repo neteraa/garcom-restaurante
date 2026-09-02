@@ -56,6 +56,58 @@ def save_orders():
         json.dump(orders, f, indent=2, ensure_ascii=False)
 
 
+# ─────────────────────────────────────────────────────────────────
+# ESTOQUE — controle de estoque por item do cardápio
+# ─────────────────────────────────────────────────────────────────
+INVENTORY_FILE = DATA_DIR / "inventory.json"
+
+def _default_inv_item(menu_item: dict) -> dict:
+    return {
+        "item_id":       menu_item["id"],
+        "name":          menu_item["name"],
+        "category":      menu_item.get("category", ""),
+        "stock":         0,
+        "low_threshold": 10,
+        "sold_today":    0,
+        "updated_at":    None,
+    }
+
+def _load_inventory() -> dict:
+    if INVENTORY_FILE.exists():
+        with open(INVENTORY_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return {}
+
+inventory: dict = _load_inventory()
+
+def save_inventory():
+    with open(INVENTORY_FILE, "w", encoding="utf-8") as f:
+        json.dump(inventory, f, indent=2, ensure_ascii=False)
+
+def decrement_inventory(items: list):
+    """Desconta do estoque ao confirmar pedido. Chamado automaticamente."""
+    changed = False
+    for it in items:
+        iid = it.get("id") or it.get("item_id")
+        qty = int(it.get("qty", 1))
+        if not iid:
+            continue
+        if iid not in inventory:
+            # cria entrada dinâmica se ainda não existia
+            menu_ref = next((m for m in MENU if m["id"] == iid), None)
+            if menu_ref:
+                inventory[iid] = _default_inv_item(menu_ref)
+            else:
+                inventory[iid] = {"item_id": iid, "name": iid, "category": "", "stock": 0, "low_threshold": 10, "sold_today": 0, "updated_at": None}
+        entry = inventory[iid]
+        entry["stock"]      = max(0, entry.get("stock", 0) - qty)
+        entry["sold_today"] = entry.get("sold_today", 0) + qty
+        entry["updated_at"] = datetime.now().isoformat()
+        changed = True
+    if changed:
+        save_inventory()
+
+
 # Menu JM Espetinhos & Assados - Itapeva/SP
 # gender: "m" or "f". plural: nome no plural pra fala natural
 MENU = [
@@ -439,6 +491,29 @@ async def broadcast_new_order(order: dict):
         except Exception:
             kitchen_clients.discard(ws)
 
+async def broadcast_inventory_alerts(items: list):
+    """Avisa a cozinha quando itens do pedido ficam com estoque baixo/zerado."""
+    alerts = []
+    for it in items:
+        iid = it.get("id") or it.get("item_id")
+        if not iid or iid not in inventory:
+            continue
+        inv = inventory[iid]
+        stock = inv.get("stock", 0)
+        thr   = inv.get("low_threshold", 10)
+        if stock == 0:
+            alerts.append({"item_id": iid, "name": inv.get("name", iid), "stock": 0, "level": "out"})
+        elif stock <= thr:
+            alerts.append({"item_id": iid, "name": inv.get("name", iid), "stock": stock, "level": "low"})
+    if not alerts:
+        return
+    msg = json.dumps({"type": "inventory_alert", "alerts": alerts})
+    for ws in list(kitchen_clients):
+        try:
+            await ws.send_text(msg)
+        except Exception:
+            kitchen_clients.discard(ws)
+
 
 @app.post("/api/order")
 async def create_order(req: OrderRequest):
@@ -453,6 +528,8 @@ async def create_order(req: OrderRequest):
     }
     orders.append(order)
     save_orders()
+    decrement_inventory(req.items)
+    await broadcast_inventory_alerts(req.items)
     if req.customer_id in customers:
         names = [it["name"] for it in req.items]
         customers[req.customer_id]["history"].insert(0, {"items": names, "total": req.total, "date": order["created_at"]})
@@ -531,6 +608,183 @@ def get_stats():
         "status_counts": dict(status_counts),
         "recent": recent_min,
         "customers_total": len(customers),
+    }
+
+
+# ─────────────────────────────────────────────────────────────────
+# ESTOQUE — endpoints
+# ─────────────────────────────────────────────────────────────────
+
+@app.get("/api/inventory")
+def get_inventory():
+    """Retorna estoque atual de todos os itens do cardápio."""
+    result = []
+    today_str = datetime.now().strftime("%Y-%m-%d")
+    for m in MENU:
+        iid = m["id"]
+        inv = inventory.get(iid, {})
+        stock = inv.get("stock", 0)
+        low_thr = inv.get("low_threshold", 10)
+
+        # Vendas do dia calculadas do inventory (pode ser 0 se nunca reposto)
+        sold_today = inv.get("sold_today", 0)
+
+        # Status semaforo
+        if stock == 0:
+            status = "out"
+        elif stock <= low_thr:
+            status = "low"
+        elif stock <= low_thr * 2:
+            status = "warning"
+        else:
+            status = "ok"
+
+        result.append({
+            "item_id":      iid,
+            "name":         m["name"],
+            "category":     m.get("category", ""),
+            "image":        m.get("image", ""),
+            "photo":        m.get("thumb") or m.get("photo") or "",
+            "price":        m.get("price", 0),
+            "stock":        stock,
+            "low_threshold": low_thr,
+            "sold_today":   sold_today,
+            "status":       status,
+            "updated_at":   inv.get("updated_at"),
+        })
+    return {"items": result, "generated_at": datetime.now().isoformat()}
+
+
+class InventoryRestockRequest(BaseModel):
+    # Repor estoque de UM item
+    item_id: str
+    qty: int
+    notes: str = ""
+
+@app.post("/api/inventory/restock")
+async def restock_item(req: InventoryRestockRequest):
+    """Adiciona quantidade ao estoque de um item (ex.: 'fiz mais 50 espetinhos')."""
+    m = next((x for x in MENU if x["id"] == req.item_id), None)
+    if req.item_id not in inventory:
+        inventory[req.item_id] = _default_inv_item(m) if m else {
+            "item_id": req.item_id, "name": req.item_id, "category": "", "stock": 0, "low_threshold": 10, "sold_today": 0, "updated_at": None
+        }
+    inventory[req.item_id]["stock"] = inventory[req.item_id].get("stock", 0) + req.qty
+    inventory[req.item_id]["updated_at"] = datetime.now().isoformat()
+    if req.notes:
+        inventory[req.item_id]["last_restock_notes"] = req.notes
+    save_inventory()
+    return {"ok": True, "item_id": req.item_id, "new_stock": inventory[req.item_id]["stock"]}
+
+
+class InventoryBatchRestockRequest(BaseModel):
+    # Reposição em lote (abrir o dia: define o estoque inicial de vários itens)
+    items: list  # [{"item_id": "...", "qty": 50}, ...]
+
+@app.post("/api/inventory/restock-batch")
+async def restock_batch(req: InventoryBatchRestockRequest):
+    """Reposição em lote — ideal pra 'abrir o dia' e definir o estoque de todos de vez."""
+    updated = []
+    for entry in req.items:
+        iid = entry.get("item_id")
+        qty = int(entry.get("qty", 0))
+        if not iid or qty <= 0:
+            continue
+        m = next((x for x in MENU if x["id"] == iid), None)
+        if iid not in inventory:
+            inventory[iid] = _default_inv_item(m) if m else {
+                "item_id": iid, "name": iid, "category": "", "stock": 0, "low_threshold": 10, "sold_today": 0, "updated_at": None
+            }
+        inventory[iid]["stock"] = inventory[iid].get("stock", 0) + qty
+        inventory[iid]["updated_at"] = datetime.now().isoformat()
+        updated.append({"item_id": iid, "new_stock": inventory[iid]["stock"]})
+    save_inventory()
+    return {"ok": True, "updated": updated}
+
+
+class InventoryAdjustRequest(BaseModel):
+    item_id: str
+    stock: int
+    low_threshold: int = None
+
+@app.post("/api/inventory/adjust")
+async def adjust_inventory(req: InventoryAdjustRequest):
+    """Ajuste manual direto (corrigir contagem errada)."""
+    m = next((x for x in MENU if x["id"] == req.item_id), None)
+    if req.item_id not in inventory:
+        inventory[req.item_id] = _default_inv_item(m) if m else {
+            "item_id": req.item_id, "name": req.item_id, "category": "", "stock": 0, "low_threshold": 10, "sold_today": 0, "updated_at": None
+        }
+    inventory[req.item_id]["stock"] = max(0, req.stock)
+    if req.low_threshold is not None:
+        inventory[req.item_id]["low_threshold"] = max(0, req.low_threshold)
+    inventory[req.item_id]["updated_at"] = datetime.now().isoformat()
+    save_inventory()
+    return {"ok": True, "item_id": req.item_id, "stock": inventory[req.item_id]["stock"]}
+
+
+@app.get("/api/inventory/alerts")
+def get_inventory_alerts():
+    """Itens com estoque baixo ou zerado — consumido pela cozinha em tempo real."""
+    alerts = []
+    for m in MENU:
+        iid = m["id"]
+        inv = inventory.get(iid, {})
+        stock = inv.get("stock", 0)
+        thr = inv.get("low_threshold", 10)
+        if stock == 0 and inv:  # só alerta se o item foi reposto alguma vez
+            alerts.append({"item_id": iid, "name": m["name"], "stock": 0, "level": "out", "category": m.get("category","")})
+        elif 0 < stock <= thr:
+            alerts.append({"item_id": iid, "name": m["name"], "stock": stock, "level": "low", "category": m.get("category","")})
+    return {"alerts": alerts, "count": len(alerts)}
+
+
+@app.post("/api/inventory/reset-day")
+async def reset_day():
+    """Zera o contador 'sold_today' — chamar no início de cada dia."""
+    for iid in inventory:
+        inventory[iid]["sold_today"] = 0
+    save_inventory()
+    return {"ok": True, "reset_at": datetime.now().isoformat()}
+
+
+@app.get("/api/inventory/report")
+def inventory_report():
+    """Relatório de vendas do dia por item — melhor que o CardapioWeb 😎."""
+    today_str = datetime.now().strftime("%Y-%m-%d")
+    today_orders = [o for o in orders if o.get("created_at", "").startswith(today_str) and o.get("status") != "canceled"]
+
+    # Agrupa vendas por item_id a partir dos pedidos do dia
+    sales: dict = {}
+    for o in today_orders:
+        for it in o.get("items", []):
+            iid = it.get("id") or it.get("item_id", "")
+            if not iid:
+                continue
+            if iid not in sales:
+                sales[iid] = {"item_id": iid, "name": it.get("name", iid), "qty": 0, "revenue": 0.0}
+            sales[iid]["qty"]     += it.get("qty", 1)
+            sales[iid]["revenue"] += it.get("total", 0)
+
+    # Enriquece com dados de estoque
+    report_items = []
+    for iid, s in sorted(sales.items(), key=lambda x: -x[1]["qty"]):
+        inv = inventory.get(iid, {})
+        report_items.append({
+            **s,
+            "stock_remaining": inv.get("stock", 0),
+            "low_threshold":   inv.get("low_threshold", 10),
+        })
+
+    total_revenue = sum(s["revenue"] for s in sales.values())
+    total_items   = sum(s["qty"]     for s in sales.values())
+
+    return {
+        "date":          today_str,
+        "total_revenue": round(total_revenue, 2),
+        "total_items":   total_items,
+        "total_orders":  len(today_orders),
+        "items":         report_items,
     }
 
 
@@ -1158,6 +1412,8 @@ async def chat(req: ChatRequest):
                         }
                         orders.append(order)
                         save_orders()
+                        decrement_inventory(items)
+                        await broadcast_inventory_alerts(items)
                         if sess["customer"] and sess["customer"] in customers:
                             names = [it["name"] for it in items]
                             customers[sess["customer"]]["history"].insert(0, {"items": names, "total": total, "date": order["created_at"]})
@@ -1276,6 +1532,8 @@ async def chat(req: ChatRequest):
             }
             orders.append(order)
             save_orders()
+            decrement_inventory(items)
+            await broadcast_inventory_alerts(items)
             if sess["customer"] and sess["customer"] in customers:
                 names = [it["name"] for it in items]
                 customers[sess["customer"]]["history"].insert(0, {"items": names, "total": total, "date": order["created_at"]})

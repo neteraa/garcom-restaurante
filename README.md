@@ -34,11 +34,12 @@ garcom-restaurante/
 
 **Rotas frontend:**
 
-| URL                          | Tela          |
-|------------------------------|---------------|
-| `http://localhost:5174/`     | Totem cliente |
-| `http://localhost:5174/#/kitchen` | Cozinha  |
-| `http://localhost:5174/#/caixa`   | Caixa    |
+| URL                               | Tela              |
+|-----------------------------------|-------------------|
+| `http://localhost:5174/`          | Totem cliente     |
+| `http://localhost:5174/#/kitchen` | Cozinha           |
+| `http://localhost:5174/#/caixa`   | Caixa (financeiro)|
+| `http://localhost:5174/#/estoque` | Estoque 📦        |
 
 ---
 
@@ -164,8 +165,15 @@ docker compose up --build
 | `/api/orders` | GET | Lista todos os pedidos |
 | `/api/stats` | GET | Estatísticas do dia (caixa) |
 | `/api/session/reset` | POST | Reseta sessão do totem |
+| `/api/inventory` | GET | Estoque atual com status semáforo |
+| `/api/inventory/restock` | POST | Repor estoque de um item |
+| `/api/inventory/restock-batch` | POST | Reposição em lote ("abrir o dia") |
+| `/api/inventory/adjust` | POST | Ajuste manual de quantidade |
+| `/api/inventory/alerts` | GET | Itens baixos/zerados |
+| `/api/inventory/report` | GET | Relatório de vendas do dia por item |
+| `/api/inventory/reset-day` | POST | Zera contadores diários |
 | `/ws` | WebSocket | Stream de detecção facial |
-| `/ws/kitchen` | WebSocket | Notificações da cozinha em tempo real |
+| `/ws/kitchen` | WebSocket | Pedidos, status e alertas de estoque em tempo real |
 
 ---
 

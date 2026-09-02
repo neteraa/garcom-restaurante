@@ -22,6 +22,7 @@ export default function Kitchen() {
   const [connected, setConnected] = useState(false)
   const [pulseId, setPulseId] = useState(null)
   const [stats, setStats] = useState({ total_today: 0, orders_today: 0 })
+  const [stockAlerts, setStockAlerts] = useState([])   // alertas de estoque baixo
   const wsRef = useRef(null)
   const audioRef = useRef(null)
 
@@ -43,7 +44,7 @@ export default function Kitchen() {
     wsRef.current = ws
     ws.onopen = () => setConnected(true)
     ws.onclose = () => { setConnected(false); setTimeout(connect, 2000) }
-    ws.onmessage = (ev) => {
+          ws.onmessage = (ev) => {
       const d = JSON.parse(ev.data)
       if (d.type === 'snapshot') {
         setOrders(d.orders)
@@ -65,6 +66,17 @@ export default function Kitchen() {
         } catch {}
       } else if (d.type === 'status') {
         setOrders(prev => prev.map(o => o.id === d.order.id ? d.order : o).filter(o => ['preparing', 'ready'].includes(o.status)))
+      } else if (d.type === 'inventory_alert') {
+        // Mergeia novos alertas com os existentes
+        setStockAlerts(prev => {
+          const merged = [...prev]
+          for (const a of d.alerts) {
+            const idx = merged.findIndex(x => x.item_id === a.item_id)
+            if (idx >= 0) merged[idx] = a
+            else merged.push(a)
+          }
+          return merged
+        })
       }
     }
   }
@@ -103,6 +115,21 @@ export default function Kitchen() {
           <div><span className="stat-num" style={{ color: '#22c55e', fontSize: 22 }}>R$ {(stats.total_today || 0).toFixed(2)}</span><span className="stat-label">CAIXA</span></div>
         </div>
       </header>
+
+      {/* ── Alertas de estoque — aparecem quando item fica baixo/zerado ── */}
+      {stockAlerts.length > 0 && (
+        <div className="kh-stock-alerts">
+          <span className="ksa-icon">⚠️</span>
+          <span className="ksa-label">ESTOQUE:</span>
+          {stockAlerts.map(a => (
+            <span key={a.item_id} className={`ksa-chip ${a.level}`}>
+              {a.level === 'out' ? '🔴' : '🟠'} {a.name}
+              {a.stock > 0 ? ` — ${a.stock} un.` : ' — ZEROU!'}
+            </span>
+          ))}
+          <button className="ksa-dismiss" onClick={() => setStockAlerts([])}>✕</button>
+        </div>
+      )}
 
       <div className="kh-columns">
         {/* Preparing */}
@@ -211,6 +238,29 @@ export default function Kitchen() {
         }
         .stat-num { font-size: 30px; font-weight: 900; color: #f97316; line-height: 1; }
         .stat-label { font-size: 9px; letter-spacing: 3px; color: #94a3b8; margin-top: 2px; }
+
+        /* STOCK ALERTS BANNER */
+        .kh-stock-alerts {
+          display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+          background: rgba(249,115,22,0.12);
+          border-bottom: 2px solid rgba(249,115,22,0.4);
+          padding: 8px 20px; font-size: 12px;
+          animation: saFlash 1s ease-in-out 3;
+        }
+        @keyframes saFlash { 0%,100% { background: rgba(249,115,22,0.12); } 50% { background: rgba(249,115,22,0.25); } }
+        .ksa-icon { font-size: 16px; }
+        .ksa-label { font-weight: 900; letter-spacing: 2px; color: #f97316; }
+        .ksa-chip {
+          padding: 3px 10px; border-radius: 999px;
+          background: rgba(249,115,22,0.2); color: #fbbf24;
+          border: 1px solid rgba(249,115,22,0.4); font-weight: 700; font-size: 11px;
+        }
+        .ksa-chip.out { background: rgba(239,68,68,0.2); color: #fca5a5; border-color: rgba(239,68,68,0.5); }
+        .ksa-dismiss {
+          margin-left: auto; background: none; border: none;
+          color: #64748b; cursor: pointer; font-size: 14px; padding: 2px 6px;
+        }
+        .ksa-dismiss:hover { color: #f97316; }
 
         .kh-columns {
           flex: 1;
