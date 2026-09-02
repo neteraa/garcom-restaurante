@@ -1,3 +1,4 @@
+import asyncio
 import base64
 import json
 import os
@@ -1955,6 +1956,281 @@ async def websocket_endpoint(ws: WebSocket):
                     await ws.send_text(json.dumps({"type": "face", "detected": False, "n_faces": 0, "engaged": False}))
     except WebSocketDisconnect:
         pass
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# iFood Merchant API integration
+# ══════════════════════════════════════════════════════════════════════════════
+import ifood_client as _ifood
+
+# Background polling task handle
+_ifood_poll_task: asyncio.Task | None = None
+
+
+class IFoodCredentials(BaseModel):
+    clientId: str
+    clientSecret: str
+
+
+class IFoodMerchantAction(BaseModel):
+    merchantId: str
+    minutes: int = 60  # used by pause
+
+
+class IFoodCancelRequest(BaseModel):
+    reasonCode: str
+    reason: str = ""
+
+
+@app.post("/api/ifood/configure")
+async def ifood_configure(creds: IFoodCredentials):
+    """Salvar clientId + clientSecret iFood e testar autenticação."""
+    _ifood.save_credentials(creds.clientId, creds.clientSecret)
+    try:
+        token = _ifood.get_token(force_refresh=True)
+        merchants = _ifood.list_merchants()
+        return {"ok": True, "merchants": merchants, "message": f"Conectado! {len(merchants)} loja(s) encontrada(s)."}
+    except Exception as e:
+        return JSONResponse(status_code=400, content={"ok": False, "error": str(e)})
+
+
+@app.get("/api/ifood/status")
+async def ifood_status():
+    """Retorna status da conexão iFood (token, lojas, polling)."""
+    cfg = _ifood.get_config()
+    has_creds = bool(cfg.get("clientId") and cfg.get("clientSecret"))
+    if not has_creds:
+        return {"connected": False, "message": "Credenciais não configuradas"}
+    try:
+        token = _ifood.get_token()
+        merchants = _ifood.list_merchants() if token else []
+        return {
+            "connected": bool(token),
+            "merchants": merchants,
+            "polling_active": _ifood_poll_task is not None and not _ifood_poll_task.done(),
+            "clientId": cfg.get("clientId", "")[:8] + "…",
+        }
+    except Exception as e:
+        return {"connected": False, "error": str(e)}
+
+
+@app.get("/api/ifood/merchants")
+async def ifood_merchants():
+    try:
+        return _ifood.list_merchants()
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.get("/api/ifood/merchants/{merchant_id}/status")
+async def ifood_merchant_status(merchant_id: str):
+    try:
+        return _ifood.get_merchant_status(merchant_id)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/api/ifood/merchants/{merchant_id}/open")
+async def ifood_open_merchant(merchant_id: str):
+    """Abrir restaurante no iFood (remove interrupções)."""
+    try:
+        return _ifood.open_merchant(merchant_id)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/api/ifood/merchants/{merchant_id}/pause")
+async def ifood_pause_merchant(merchant_id: str, body: IFoodMerchantAction):
+    """Pausar restaurante no iFood por N minutos."""
+    try:
+        return _ifood.pause_merchant(merchant_id, body.minutes)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.get("/api/ifood/events/poll")
+async def ifood_poll():
+    """Buscar novos eventos iFood e importar pedidos no sistema."""
+    try:
+        events = _ifood.poll_events()
+        imported = []
+        ack_ids = []
+
+        for ev in events:
+            eid = ev.get("id") or ev.get("eventId")
+            ecode = ev.get("code") or ev.get("type", "")
+            order_id = ev.get("orderId") or ev.get("reference")
+
+            ack_ids.append(eid)
+
+            if ecode == "PLACED" and order_id:
+                # New order! Fetch details and import
+                try:
+                    ifood_order = _ifood.get_order(order_id)
+                    internal = _ifood.ifood_order_to_internal(ifood_order)
+
+                    # Avoid duplicate imports
+                    if not any(o.get("ifood_id") == order_id for o in orders):
+                        internal["status"] = "pending"
+                        orders.append(internal)
+                        save_orders()
+                        imported.append(order_id)
+                        # Auto-confirm on iFood
+                        try:
+                            _ifood.confirm_order(order_id)
+                        except Exception:
+                            pass
+                except Exception as e:
+                    pass  # log but don't fail the whole poll
+
+        if ack_ids:
+            _ifood.acknowledge_events(ack_ids)
+
+        return {"ok": True, "events": len(events), "imported": imported}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.get("/api/ifood/orders")
+async def ifood_orders():
+    """Listar todos os pedidos vindos do iFood."""
+    ifood = [o for o in orders if o.get("source") == "ifood" or o.get("channel") == "ifood"]
+    return {"orders": ifood, "total": len(ifood)}
+
+
+@app.post("/api/ifood/orders/{order_id}/confirm")
+async def ifood_confirm(order_id: str):
+    try:
+        _ifood.confirm_order(order_id)
+        # Update local status too
+        for o in orders:
+            if o.get("ifood_id") == order_id:
+                o["status"] = "confirmed"
+        save_orders()
+        return {"ok": True}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/api/ifood/orders/{order_id}/start-preparation")
+async def ifood_start_prep(order_id: str):
+    try:
+        _ifood.start_preparation(order_id)
+        for o in orders:
+            if o.get("ifood_id") == order_id:
+                o["status"] = "preparing"
+        save_orders()
+        return {"ok": True}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/api/ifood/orders/{order_id}/ready")
+async def ifood_ready(order_id: str):
+    try:
+        _ifood.ready_to_pickup(order_id)
+        for o in orders:
+            if o.get("ifood_id") == order_id:
+                o["status"] = "ready"
+        save_orders()
+        return {"ok": True}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/api/ifood/orders/{order_id}/dispatch")
+async def ifood_dispatch(order_id: str):
+    try:
+        _ifood.dispatch_order(order_id)
+        for o in orders:
+            if o.get("ifood_id") == order_id:
+                o["status"] = "dispatched"
+        save_orders()
+        return {"ok": True}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/api/ifood/orders/{order_id}/cancel")
+async def ifood_cancel(order_id: str, body: IFoodCancelRequest):
+    try:
+        _ifood.cancel_order(order_id, body.reasonCode, body.reason)
+        for o in orders:
+            if o.get("ifood_id") == order_id:
+                o["status"] = "cancelled"
+        save_orders()
+        return {"ok": True}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.get("/api/ifood/orders/{order_id}/cancellation-reasons")
+async def ifood_cancel_reasons(order_id: str):
+    try:
+        return _ifood.get_cancellation_reasons(order_id)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+# Background polling loop
+async def _ifood_background_poll(interval_seconds: int = 30):
+    """Poll iFood every `interval_seconds` for new orders."""
+    while True:
+        try:
+            cfg = _ifood.get_config()
+            if cfg.get("clientId") and cfg.get("clientSecret"):
+                events = _ifood.poll_events()
+                ack_ids = []
+                for ev in events:
+                    eid = ev.get("id") or ev.get("eventId")
+                    ecode = ev.get("code") or ev.get("type", "")
+                    order_id = ev.get("orderId") or ev.get("reference")
+                    if eid:
+                        ack_ids.append(eid)
+                    if ecode == "PLACED" and order_id:
+                        try:
+                            ifood_order = _ifood.get_order(order_id)
+                            internal = _ifood.ifood_order_to_internal(ifood_order)
+                            if not any(o.get("ifood_id") == order_id for o in orders):
+                                orders.append(internal)
+                                save_orders()
+                                try:
+                                    _ifood.confirm_order(order_id)
+                                except Exception:
+                                    pass
+                        except Exception:
+                            pass
+                if ack_ids:
+                    _ifood.acknowledge_events(ack_ids)
+        except Exception:
+            pass  # never crash the background task
+        await asyncio.sleep(interval_seconds)
+
+
+@app.on_event("startup")
+async def start_ifood_polling():
+    global _ifood_poll_task
+    cfg = _ifood.get_config()
+    if cfg.get("clientId") and cfg.get("clientSecret"):
+        _ifood_poll_task = asyncio.create_task(_ifood_background_poll(30))
+
+
+@app.post("/api/ifood/polling/start")
+async def start_polling():
+    global _ifood_poll_task
+    if _ifood_poll_task and not _ifood_poll_task.done():
+        return {"ok": True, "message": "Polling já ativo"}
+    _ifood_poll_task = asyncio.create_task(_ifood_background_poll(30))
+    return {"ok": True, "message": "Polling iniciado (a cada 30s)"}
+
+
+@app.post("/api/ifood/polling/stop")
+async def stop_polling():
+    global _ifood_poll_task
+    if _ifood_poll_task and not _ifood_poll_task.done():
+        _ifood_poll_task.cancel()
+    _ifood_poll_task = None
+    return {"ok": True, "message": "Polling pausado"}
 
 
 # ── Serve React SPA (built files) ────────────────────────────────────────────

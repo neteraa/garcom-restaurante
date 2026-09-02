@@ -18,3 +18,4 @@ backend/data/comandas.json
 backend/data/inventory.json
 backend/data/customers.json
 backend/data/faces/
+backend/data/ifood_config.json

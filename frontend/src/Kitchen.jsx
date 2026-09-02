@@ -114,6 +114,11 @@ export default function Kitchen() {
           <div><span className="stat-num" style={{ color: '#fbbf24' }}>{stats.orders_today || 0}</span><span className="stat-label">HOJE</span></div>
           <div><span className="stat-num" style={{ color: '#22c55e', fontSize: 22 }}>R$ {(stats.total_today || 0).toFixed(2)}</span><span className="stat-label">CAIXA</span></div>
         </div>
+        <a href="#/ifood" style={{
+          background: '#ea1d2c', color: '#fff', borderRadius: 8,
+          padding: '6px 14px', fontWeight: 700, fontSize: 12, textDecoration: 'none',
+          display: 'flex', alignItems: 'center', gap: 6, marginLeft: 16,
+        }}>🛵 iFood</a>
       </header>
 
       {/* ── Alertas de estoque — aparecem quando item fica baixo/zerado ── */}
@@ -146,13 +151,16 @@ export default function Kitchen() {
                 <div className="kh-card-head">
                   <span className="kh-senha">#{o.id.toUpperCase()}</span>
                   {o.table_id && <span className="kh-mesa-badge">🪑 Mesa {o.table_id}</span>}
+                  {(o.source === 'ifood' || o.channel === 'ifood') && (
+                    <span className="kh-ifood-badge">🛵 iFood</span>
+                  )}
                   <span className="kh-time">{fmt(o.created_at)} · {elapsed(o.created_at)}</span>
                 </div>
-                <div className="kh-customer">{o.customer_id || 'Anônimo'}</div>
+                <div className="kh-customer">{o.customer || o.customer_id || 'Anônimo'}</div>
                 <div className="kh-items">
-                  {o.items.map((it, i) => (
+                  {(o.items || []).map((it, i) => (
                     <div key={i} className="kh-item">
-                      <span className="kh-qty">{it.qty}×</span>
+                      <span className="kh-qty">{it.qty || it.quantity}×</span>
                       <span>{it.name}</span>
                     </div>
                   ))}
@@ -181,13 +189,16 @@ export default function Kitchen() {
                 <div className="kh-card-head">
                   <span className="kh-senha ready">#{o.id.toUpperCase()}</span>
                   {o.table_id && <span className="kh-mesa-badge">🪑 Mesa {o.table_id}</span>}
+                  {(o.source === 'ifood' || o.channel === 'ifood') && (
+                    <span className="kh-ifood-badge">🛵 iFood</span>
+                  )}
                   <span className="kh-time">Pronto há {elapsed(o.timeline?.ready)}</span>
                 </div>
-                <div className="kh-customer">{o.customer_id || 'Anônimo'}</div>
+                <div className="kh-customer">{o.customer || o.customer_id || 'Anônimo'}</div>
                 <div className="kh-items">
-                  {o.items.map((it, i) => (
+                  {(o.items || []).map((it, i) => (
                     <div key={i} className="kh-item">
-                      <span className="kh-qty">{it.qty}×</span>
+                      <span className="kh-qty">{it.qty || it.quantity}×</span>
                       <span>{it.name}</span>
                     </div>
                   ))}
@@ -326,6 +337,12 @@ export default function Kitchen() {
           font-size: 11px; font-weight: 900; letter-spacing: 1px;
           background: rgba(99,102,241,0.2); color: #a5b4fc;
           border: 1px solid rgba(99,102,241,0.5); border-radius: 999px;
+          padding: 2px 9px;
+        }
+        .kh-ifood-badge {
+          font-size: 11px; font-weight: 900; letter-spacing: 1px;
+          background: rgba(234,29,44,0.2); color: #ea1d2c;
+          border: 1px solid rgba(234,29,44,0.5); border-radius: 999px;
           padding: 2px 9px;
         }
         .kh-senha {
