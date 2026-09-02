@@ -7,6 +7,9 @@ import Estoque from './Estoque'
 import Mesas from './Mesas'
 import CardapioMesa from './CardapioMesa'
 import IFood from './IFood'
+import Relatorios from './Relatorios'
+import Configuracoes from './Configuracoes'
+import Staff from './Staff'
 
 // Hash-based router
 const route = window.location.hash.replace('#', '').replace(/^\//, '')
@@ -15,6 +18,9 @@ const Component = route === 'kitchen'         ? Kitchen
                 : route === 'estoque'         ? Estoque
                 : route === 'mesas'           ? Mesas
                 : route === 'ifood'           ? IFood
+                : route === 'relatorios'      ? Relatorios
+                : route === 'configuracoes'   ? Configuracoes
+                : route === 'staff'           ? Staff
                 : route.startsWith('mesa/')   ? CardapioMesa
                 : App
 

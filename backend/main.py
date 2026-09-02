@@ -5,7 +5,7 @@ import os
 import re
 import time
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from io import BytesIO
 from pathlib import Path
 
@@ -19,18 +19,41 @@ from pydantic import BaseModel
 
 # Face recognition — optional: degrada graciosamente se torch não instalado
 face_detector = None
-face_encoder = None
-FACE_ENABLED = False
+face_encoder  = None
+FACE_ENABLED  = False
+FACE_MODE     = "none"   # "full" | "detect_only" | "none"
+
 try:
     import torch
     from facenet_pytorch import MTCNN, InceptionResnetV1
     print("Carregando modelo de detecção facial (MTCNN)...")
-    face_detector = MTCNN(keep_all=True, device="cpu", post_process=False, min_face_size=80, thresholds=[0.7, 0.8, 0.85])
+    face_detector = MTCNN(keep_all=True, device="cpu", post_process=False,
+                          min_face_size=80, thresholds=[0.7, 0.8, 0.85])
     face_encoder  = InceptionResnetV1(pretrained="vggface2").eval()
     FACE_ENABLED  = True
-    print("✅ Face recognition carregado")
-except Exception as e:
-    print(f"⚠️  Face recognition desativado ({e}) — restante do sistema funciona normalmente")
+    FACE_MODE     = "full"
+    print("✅ Face recognition completo (MTCNN + VGGFace2) ativo")
+except Exception:
+    pass
+
+# Fallback: detecção de presença via OpenCV YuNet (sem reconhecimento)
+_yunet_detector = None
+if not FACE_ENABLED:
+    try:
+        import cv2 as _cv2
+        _model_path = Path(__file__).parent / "models" / "face_detection_yunet.onnx"
+        if _model_path.exists():
+            _yunet_detector = _cv2.FaceDetectorYN.create(str(_model_path), "", (320, 240))
+            FACE_ENABLED = True
+            FACE_MODE    = "detect_only"
+            print("✅ Detecção de presença (OpenCV YuNet) ativa — reconhecimento indisponível (instale torch)")
+        else:
+            print("⚠️  Modelo YuNet não encontrado em backend/models/")
+    except Exception as _e:
+        print(f"⚠️  OpenCV não disponível ({_e})")
+
+if not FACE_ENABLED:
+    print("⚠️  Nenhuma detecção facial ativa — totem funciona por toque/voz")
 
 # Paths
 BASE_DIR = Path(__file__).parent
@@ -1960,6 +1983,184 @@ async def heygen_avatars():
         return {"error": str(e)}
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# CONFIGURAÇÕES & STATUS DO SISTEMA
+# ─────────────────────────────────────────────────────────────────────────────
+
+CONFIG_FILE = DATA_DIR / "config.json"
+
+def _load_config() -> dict:
+    if CONFIG_FILE.exists():
+        try:
+            return json.loads(CONFIG_FILE.read_text())
+        except Exception:
+            pass
+    return {}
+
+def _save_config(cfg: dict):
+    CONFIG_FILE.write_text(json.dumps(cfg, indent=2, ensure_ascii=False))
+    # Aplica no processo atual
+    for key, val in cfg.items():
+        if val:
+            os.environ[key] = val
+
+@app.get("/api/system/status")
+async def system_status():
+    """Status geral do sistema para o painel de configurações."""
+    import edge_tts  # noqa
+    key = os.environ.get("OPENAI_API_KEY", "")
+    masked = (key[:6] + "..." + key[-4:]) if len(key) > 14 else ("configurada" if key else "")
+    return {
+        "face_mode":       FACE_MODE,
+        "face_enabled":    FACE_ENABLED,
+        "openai_ok":       bool(key and key != "dummy"),
+        "openai_key_hint": masked,
+        "tts_engine":      "edge-tts (Microsoft Thalita)",
+        "menu_items":      len(MENU),
+        "customers":       len(customers),
+        "orders_today":    sum(1 for o in orders if o.get("created_at", "").startswith(datetime.now().date().isoformat())),
+        "backend_version": "2.1.0",
+    }
+
+class ConfigSaveRequest(BaseModel):
+    openai_api_key: str | None = None
+    heygen_api_key: str | None = None
+    elevenlabs_api_key: str | None = None
+
+@app.post("/api/config/save")
+async def config_save(req: ConfigSaveRequest):
+    global OPENAI_API_KEY
+    cfg = _load_config()
+    if req.openai_api_key is not None:
+        clean = req.openai_api_key.strip()
+        if clean:
+            cfg["OPENAI_API_KEY"] = clean
+            os.environ["OPENAI_API_KEY"] = clean
+            OPENAI_API_KEY = clean
+    if req.heygen_api_key is not None:
+        cfg["HEYGEN_API_KEY"] = req.heygen_api_key.strip()
+        os.environ["HEYGEN_API_KEY"] = cfg["HEYGEN_API_KEY"]
+    if req.elevenlabs_api_key is not None:
+        cfg["ELEVENLABS_API_KEY"] = req.elevenlabs_api_key.strip()
+        os.environ["ELEVENLABS_API_KEY"] = cfg["ELEVENLABS_API_KEY"]
+    _save_config(cfg)
+    return {"ok": True, "openai_ok": bool(OPENAI_API_KEY and OPENAI_API_KEY != "dummy")}
+
+@app.get("/api/reports")
+async def get_reports(period: str = "today"):
+    """Relatório de vendas — period: today | week | month"""
+    from collections import Counter, defaultdict
+    now = datetime.now()
+    if period == "today":
+        start = now.date()
+        label = f"Hoje — {now.strftime('%d/%m/%Y')}"
+    elif period == "week":
+        start = (now - timedelta(days=7)).date()
+        label = "Últimos 7 dias"
+    elif period == "month":
+        start = (now - timedelta(days=30)).date()
+        label = "Últimos 30 dias"
+    else:
+        start = now.date()
+        label = "Hoje"
+
+    period_orders = [
+        o for o in orders
+        if o.get("created_at", "") >= start.isoformat()
+        and o.get("status") not in ("canceled",)
+    ]
+
+    total_revenue = sum(o.get("total", 0) for o in period_orders)
+    total_orders  = len(period_orders)
+    ticket_avg    = round(total_revenue / total_orders, 2) if total_orders else 0
+
+    # Items
+    item_counter = Counter()
+    item_revenue = defaultdict(float)
+    item_category = {}
+    menu_map = {m["id"]: m for m in MENU}
+    for o in period_orders:
+        for it in o.get("items", []):
+            name = it.get("name", it.get("id", "?"))
+            qty  = it.get("qty", it.get("quantity", 1))
+            price = it.get("price", 0)
+            item_counter[name] += qty
+            item_revenue[name] += price * qty
+            if name not in item_category:
+                mid = it.get("id", "")
+                item_category[name] = menu_map.get(mid, {}).get("category", "Outros")
+
+    top_items = [
+        {"name": n, "qty": q, "revenue": round(item_revenue[n], 2), "category": item_category.get(n, "")}
+        for n, q in item_counter.most_common(15)
+    ]
+
+    # By category
+    cat_revenue = defaultdict(float)
+    cat_qty = Counter()
+    for it_name, qty in item_counter.items():
+        cat = item_category.get(it_name, "Outros")
+        cat_revenue[cat] += item_revenue[it_name]
+        cat_qty[cat] += qty
+    by_category = sorted(
+        [{"category": c, "revenue": round(cat_revenue[c], 2), "qty": cat_qty[c]} for c in cat_revenue],
+        key=lambda x: -x["revenue"]
+    )
+
+    # Payment breakdown
+    pay_totals = defaultdict(float)
+    pay_counts = Counter()
+    for o in period_orders:
+        pm = o.get("payment_method")
+        if pm:
+            pay_totals[pm] += o.get("total", 0)
+            pay_counts[pm] += 1
+    payment_breakdown = [
+        {"method": m, "total": round(pay_totals[m], 2), "count": pay_counts[m]}
+        for m in pay_counts
+    ]
+
+    # By day (for charts in week/month)
+    day_buckets = defaultdict(lambda: {"revenue": 0.0, "count": 0})
+    for o in period_orders:
+        day = o.get("created_at", "")[:10]
+        day_buckets[day]["revenue"] += o.get("total", 0)
+        day_buckets[day]["count"]   += 1
+    by_day = [
+        {"date": d, "revenue": round(v["revenue"], 2), "count": v["count"]}
+        for d, v in sorted(day_buckets.items())
+    ]
+
+    # By hour (for today)
+    hour_buckets = defaultdict(lambda: {"revenue": 0.0, "count": 0})
+    for o in period_orders:
+        try:
+            h = datetime.fromisoformat(o["created_at"]).hour
+            hour_buckets[h]["revenue"] += o.get("total", 0)
+            hour_buckets[h]["count"]   += 1
+        except Exception:
+            pass
+    by_hour = [
+        {"hour": h, "revenue": round(v["revenue"], 2), "count": v["count"]}
+        for h, v in sorted(hour_buckets.items())
+    ]
+
+    return {
+        "period": period, "label": label,
+        "summary": {
+            "total_revenue": round(total_revenue, 2),
+            "total_orders": total_orders,
+            "ticket_avg": ticket_avg,
+            "canceled": sum(1 for o in orders if o.get("status") == "canceled" and o.get("created_at", "") >= start.isoformat()),
+        },
+        "top_items": top_items,
+        "by_category": by_category,
+        "payment_breakdown": payment_breakdown,
+        "by_day": by_day,
+        "by_hour": by_hour,
+    }
+
+
 # WebSocket for live processing
 @app.websocket("/ws")
 async def websocket_endpoint(ws: WebSocket):
@@ -1971,35 +2172,60 @@ async def websocket_endpoint(ws: WebSocket):
             if data.get("type") == "ping":
                 await ws.send_text(json.dumps({"type": "pong"}))
                 continue
-            if data.get("frame") and FACE_ENABLED:
-                img = decode_frame(data["frame"])
+
+            if not data.get("frame") or not FACE_ENABLED:
+                continue
+
+            img = decode_frame(data["frame"])
+
+            # ── Full pipeline: MTCNN + VGGFace2 ──────────────────────────
+            if FACE_MODE == "full":
                 boxes, probs = face_detector.detect(img)
                 if boxes is not None and len(boxes) > 0:
-                    areas = [(b[2] - b[0]) * (b[3] - b[1]) for b in boxes]
-                    idx = int(np.argmax(areas))
-                    box = boxes[idx]
-                    prob = float(probs[idx]) if probs is not None else 1.0
-                    # Face size as % of frame (proxy for closeness / engagement)
+                    areas = [(b[2]-b[0])*(b[3]-b[1]) for b in boxes]
+                    idx   = int(np.argmax(areas))
+                    box   = boxes[idx]
+                    prob  = float(probs[idx]) if probs is not None else 1.0
                     frame_area = img.size[0] * img.size[1]
                     face_ratio = float(areas[idx] / frame_area) if frame_area else 0.0
-                    embedding = get_face_embedding(img, box)
+                    embedding  = get_face_embedding(img, box)
                     name, score = (None, 0.0) if embedding is None else recognize_face(embedding)
-                    # Engagement heuristic: face large AND high probability
-                    is_engaged = face_ratio > 0.05 and prob > 0.9
+                    is_engaged  = face_ratio > 0.05 and prob > 0.9
                     await ws.send_text(json.dumps({
-                        "type": "face",
-                        "detected": True,
-                        "known": name is not None,
-                        "name": name,
+                        "type": "face", "detected": True, "mode": "full",
+                        "known": name is not None, "name": name,
                         "confidence": round(score * 100, 1) if name else 0,
-                        "bbox": box.tolist(),
-                        "n_faces": len(boxes),
-                        "face_ratio": round(face_ratio, 4),
-                        "prob": round(prob, 3),
-                        "engaged": is_engaged,
+                        "n_faces": len(boxes), "face_ratio": round(face_ratio, 4),
+                        "prob": round(prob, 3), "engaged": is_engaged,
                     }))
                 else:
-                    await ws.send_text(json.dumps({"type": "face", "detected": False, "n_faces": 0, "engaged": False}))
+                    await ws.send_text(json.dumps({"type": "face", "detected": False, "n_faces": 0, "engaged": False, "mode": "full"}))
+
+            # ── Detection-only: OpenCV YuNet ─────────────────────────────
+            elif FACE_MODE == "detect_only" and _yunet_detector is not None:
+                import cv2 as _cv2, numpy as _np
+                arr = _np.array(img.convert("RGB"))
+                bgr = _cv2.cvtColor(arr, _cv2.COLOR_RGB2BGR)
+                h, w = bgr.shape[:2]
+                _yunet_detector.setInputSize((w, h))
+                _, faces = _yunet_detector.detect(bgr)
+                if faces is not None and len(faces) > 0:
+                    # faces[:,2]*faces[:,3] = width*height of each detection
+                    areas  = [f[2] * f[3] for f in faces]
+                    idx    = int(_np.argmax(areas))
+                    best   = faces[idx]
+                    face_ratio = float(areas[idx] / (w * h)) if w * h else 0
+                    conf   = float(best[14]) if len(best) > 14 else 1.0
+                    is_engaged = face_ratio > 0.04 and conf > 0.6
+                    await ws.send_text(json.dumps({
+                        "type": "face", "detected": True, "mode": "detect_only",
+                        "known": False, "name": None,
+                        "n_faces": len(faces), "face_ratio": round(face_ratio, 4),
+                        "prob": round(conf, 3), "engaged": is_engaged,
+                    }))
+                else:
+                    await ws.send_text(json.dumps({"type": "face", "detected": False, "n_faces": 0, "engaged": False, "mode": "detect_only"}))
+
     except WebSocketDisconnect:
         pass
 
@@ -2254,8 +2480,16 @@ async def _ifood_background_poll(interval_seconds: int = 30):
 
 
 @app.on_event("startup")
-async def start_ifood_polling():
-    global _ifood_poll_task
+async def on_startup():
+    global _ifood_poll_task, OPENAI_API_KEY
+    # Carrega config.json salvo pelo painel de configurações
+    saved = _load_config()
+    for key, val in saved.items():
+        if val and not os.environ.get(key):
+            os.environ[key] = val
+    if saved.get("OPENAI_API_KEY") and not OPENAI_API_KEY:
+        OPENAI_API_KEY = saved["OPENAI_API_KEY"]
+    # iFood polling
     cfg = _ifood.get_config()
     if cfg.get("clientId") and cfg.get("clientSecret"):
         _ifood_poll_task = asyncio.create_task(_ifood_background_poll(30))
