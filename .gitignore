@@ -10,3 +10,11 @@ backend/.env
 frontend/.env
 # Build output
 frontend/dist/
+backend/static/
+
+# Runtime data (auto-generated)
+backend/data/orders.json
+backend/data/comandas.json
+backend/data/inventory.json
+backend/data/customers.json
+backend/data/faces/

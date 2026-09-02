@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react'
-import QRCode from 'qrcode.react'
+import { QRCodeSVG as QRCode } from 'qrcode.react'
 import {
   Flame, Users, Clock, DollarSign, Plus, Minus, X, Check,
   QrCode, ChevronRight, Search, Package, AlertTriangle,
@@ -67,7 +67,7 @@ export default function Mesas() {
   }, [])
 
   useEffect(() => {
-    fetch(`${API}/api/menu`).then(r => r.json()).then(d => setMenu(d.menu || []))
+    fetch(`${API}/api/menu`).then(r => r.json()).then(d => setMenu(d.items || []))
     refreshTables()
   }, [refreshTables])
 

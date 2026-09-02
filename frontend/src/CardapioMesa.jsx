@@ -24,7 +24,7 @@ export default function CardapioMesa() {
       fetch(`${API}/api/menu`).then(r => r.json()),
       fetch(`${API}/api/tables/${TABLE_ID}`).then(r => r.json()).catch(() => null),
     ]).then(([menuData, tableData]) => {
-      setMenu(menuData.menu || [])
+      setMenu(menuData.items || [])
       setTableInfo(tableData)
       setLoading(false)
     })

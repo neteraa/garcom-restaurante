@@ -9,19 +9,27 @@ from io import BytesIO
 from pathlib import Path
 
 import numpy as np
-import torch
 from fastapi import FastAPI, File, Form, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.staticfiles import StaticFiles
 from PIL import Image
 from pydantic import BaseModel
 
-# Use MTCNN + FaceNet for face detection/recognition (same as original Garcom, but lighter)
-print("Loading face detection model (MTCNN)...")
-from facenet_pytorch import MTCNN, InceptionResnetV1
-
-face_detector = MTCNN(keep_all=True, device="cpu", post_process=False, min_face_size=80, thresholds=[0.7, 0.8, 0.85])
-face_encoder = InceptionResnetV1(pretrained="vggface2").eval()
+# Face recognition — optional: degrada graciosamente se torch não instalado
+face_detector = None
+face_encoder = None
+FACE_ENABLED = False
+try:
+    import torch
+    from facenet_pytorch import MTCNN, InceptionResnetV1
+    print("Carregando modelo de detecção facial (MTCNN)...")
+    face_detector = MTCNN(keep_all=True, device="cpu", post_process=False, min_face_size=80, thresholds=[0.7, 0.8, 0.85])
+    face_encoder  = InceptionResnetV1(pretrained="vggface2").eval()
+    FACE_ENABLED  = True
+    print("✅ Face recognition carregado")
+except Exception as e:
+    print(f"⚠️  Face recognition desativado ({e}) — restante do sistema funciona normalmente")
 
 # Paths
 BASE_DIR = Path(__file__).parent
@@ -313,8 +321,11 @@ def get_face_embedding(img: Image.Image, box):
     crop = img.crop((x1, y1, x2, y2)).resize((160, 160))
     arr = np.array(crop).astype(np.float32) / 255.0
     arr = (arr - 0.5) / 0.5
-    tensor = torch.from_numpy(arr).permute(2, 0, 1).unsqueeze(0)
-    with torch.no_grad():
+    if not FACE_ENABLED:
+        return None
+    import torch as _torch
+    tensor = _torch.from_numpy(arr).permute(2, 0, 1).unsqueeze(0)
+    with _torch.no_grad():
         emb = face_encoder(tensor)
     return emb.squeeze().numpy()
 
@@ -393,6 +404,8 @@ def list_customers():
 @app.post("/api/identify-face")
 async def identify_face(payload: dict):
     """Given a base64 frame, detect and identify face(s)."""
+    if not FACE_ENABLED:
+        return {"ok": False, "status": "disabled", "message": "Face recognition não disponível neste servidor."}
     if not payload.get("frame"):
         return {"ok": False, "error": "no frame"}
     img = decode_frame(payload["frame"])
@@ -436,6 +449,8 @@ async def identify_face(payload: dict):
 
 @app.post("/api/register-face")
 async def register_face(req: RegisterRequest):
+    if not FACE_ENABLED:
+        return {"ok": False, "error": "Face recognition não disponível."}
     img = decode_frame(req.frame)
     boxes, _ = face_detector.detect(img)
     if boxes is None or len(boxes) == 0:
@@ -887,8 +902,9 @@ async def open_table(req: TableOpenRequest):
 @app.get("/api/tables/{table_id}")
 def get_table(table_id: str):
     t_cfg = next((t for t in tables_cfg["tables"] if t["id"] == table_id), None)
+    # Auto-cria configuração se não existir (ex: mesa adicionada depois)
     if not t_cfg:
-        return {"ok": False, "error": "Mesa não encontrada"}
+        t_cfg = {"id": table_id, "name": f"Mesa {table_id}", "capacity": 4}
     cmd = comandas.get(table_id)
     is_open = bool(cmd and cmd.get("status") == "open")
     return {
@@ -1908,7 +1924,7 @@ async def websocket_endpoint(ws: WebSocket):
             if data.get("type") == "ping":
                 await ws.send_text(json.dumps({"type": "pong"}))
                 continue
-            if data.get("frame"):
+            if data.get("frame") and FACE_ENABLED:
                 img = decode_frame(data["frame"])
                 boxes, probs = face_detector.detect(img)
                 if boxes is not None and len(boxes) > 0:
@@ -1941,6 +1957,20 @@ async def websocket_endpoint(ws: WebSocket):
         pass
 
 
+# ── Serve React SPA (built files) ────────────────────────────────────────────
+_STATIC_DIR = BASE_DIR / "static"
+if _STATIC_DIR.exists():
+    for _sub in ["assets", "avatars", "jm", "videos"]:
+        _d = _STATIC_DIR / _sub
+        if _d.exists():
+            app.mount(f"/{_sub}", StaticFiles(directory=str(_d)), name=_sub)
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    async def spa_fallback(full_path: str):
+        """Serve index.html for all non-API routes (SPA client-side routing)."""
+        return FileResponse(str(_STATIC_DIR / "index.html"))
+
+
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8080, reload=False)
+    uvicorn.run("main:app", host="0.0.0.0", port=8011, reload=False)
