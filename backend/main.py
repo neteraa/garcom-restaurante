@@ -604,12 +604,37 @@ def get_stats():
     # Status breakdown
     status_counts = Counter(o.get("status", "unknown") for o in today_orders)
 
-    # Recent 8 orders
+    # Payment method breakdown (only delivered/paid orders)
+    paid_orders = [o for o in valid_today if o.get("payment_method")]
+    payment_breakdown = defaultdict(lambda: {"count": 0, "total": 0.0})
+    for o in paid_orders:
+        m = o["payment_method"]
+        payment_breakdown[m]["count"] += 1
+        payment_breakdown[m]["total"] += o.get("total", 0)
+    payment_breakdown = {
+        k: {"count": v["count"], "total": round(v["total"], 2)}
+        for k, v in payment_breakdown.items()
+    }
+
+    # Pending payment (ready/preparing, unpaid)
+    pending_payment_count = sum(
+        1 for o in orders
+        if o.get("status") in ("preparing", "ready") and not o.get("payment_method")
+    )
+
+    # Recent 8 orders (with payment info)
     recent = sorted(today_orders, key=lambda x: x["created_at"], reverse=True)[:8]
     recent_min = [{
-        "id": o["id"], "customer": o.get("customer_id") or "Anônimo",
-        "total": o.get("total", 0), "status": o.get("status"),
-        "created_at": o.get("created_at"), "items_count": len(o.get("items", [])),
+        "id": o["id"],
+        "customer": o.get("customer") or o.get("customer_id") or "Anônimo",
+        "total": o.get("total", 0),
+        "status": o.get("status"),
+        "created_at": o.get("created_at"),
+        "items_count": len(o.get("items", [])),
+        "payment_method": o.get("payment_method"),
+        "paid_at": o.get("paid_at"),
+        "source": o.get("source", "totem"),
+        "table_id": o.get("table_id"),
     } for o in recent]
 
     return {
@@ -619,9 +644,11 @@ def get_stats():
         "orders_canceled": len(today_orders) - len(valid_today),
         "ticket_avg": round(ticket_avg, 2),
         "active_count": len(active_orders),
+        "pending_payment_count": pending_payment_count,
         "top_items": top_items,
         "hours_series": hours_series,
         "status_counts": dict(status_counts),
+        "payment_breakdown": payment_breakdown,
         "recent": recent_min,
         "customers_total": len(customers),
     }
@@ -1042,7 +1069,9 @@ async def configure_tables(req: TableConfigRequest):
 
 class OrderStatusRequest(BaseModel):
     order_id: str
-    status: str  # preparing, ready, delivered, canceled
+    status: str                     # preparing, ready, delivered, canceled
+    payment_method: str | None = None  # dinheiro | pix | debito | credito | fiado
+    amount_paid: float | None = None   # valor entregue (para troco)
 
 
 @app.post("/api/order/status")
@@ -1051,8 +1080,13 @@ async def update_order_status(req: OrderStatusRequest):
         if o["id"] == req.order_id:
             o["status"] = req.status
             o.setdefault("timeline", {})[req.status] = datetime.now().isoformat()
+            if req.status == "delivered" and req.payment_method:
+                o["payment_method"] = req.payment_method
+                o["paid_at"] = datetime.now().isoformat()
+                if req.amount_paid is not None:
+                    o["amount_paid"] = req.amount_paid
+                    o["change"] = round(req.amount_paid - o.get("total", 0), 2)
             save_orders()
-            # Broadcast to kitchen WS clients
             for ws in list(kitchen_clients):
                 try:
                     await ws.send_text(json.dumps({"type": "status", "order": o}))
@@ -1060,6 +1094,18 @@ async def update_order_status(req: OrderStatusRequest):
                     kitchen_clients.discard(ws)
             return {"ok": True, "order": o}
     return {"ok": False, "error": "not found"}
+
+
+@app.get("/api/orders/pending-payment")
+async def pending_payment():
+    """Pedidos prontos ou em preparo ainda não pagos (sem payment_method)."""
+    pending = [
+        o for o in orders
+        if o.get("status") in ("preparing", "ready")
+        and not o.get("payment_method")
+    ]
+    pending.sort(key=lambda x: x.get("created_at", ""))
+    return {"orders": pending, "count": len(pending)}
 
 
 # ── Kitchen WebSocket clients ──
