@@ -4,21 +4,35 @@
 # Default port: 8011
 
 PORT="${1:-8011}"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
-cd "$(dirname "$0")/backend"
+# Detecta IP da máquina para exibir no console
+IP=$(hostname -I 2>/dev/null | awk '{print $1}' || ipconfig getifaddr en0 2>/dev/null || echo "localhost")
 
-echo "🚀 Iniciando Garçom IA na porta $PORT..."
-echo "   URL: http://localhost:$PORT"
-echo "   Cozinha: http://localhost:$PORT/#/kitchen"
-echo "   Mesas:   http://localhost:$PORT/#/mesas"
-echo "   Estoque: http://localhost:$PORT/#/estoque"
-echo "   Caixa:   http://localhost:$PORT/#/caixa"
+cd "$SCRIPT_DIR/backend"
+
+# Carrega .env se existir
+[ -f .env ] && export $(grep -v '^#' .env | xargs) 2>/dev/null
+
+echo ""
+echo "╔══════════════════════════════════════════════════╗"
+echo "║           🍖  GARÇOM IA — JM ESPETINHOS          ║"
+echo "╚══════════════════════════════════════════════════╝"
+echo ""
+echo "  🖥  Totem (cliente):  http://$IP:$PORT"
+echo "  🔥 Cozinha:           http://$IP:$PORT/#/kitchen"
+echo "  💰 Caixa:             http://$IP:$PORT/#/caixa"
+echo "  🪑 Mesas:             http://$IP:$PORT/#/mesas"
+echo "  📦 Estoque:           http://$IP:$PORT/#/estoque"
+echo "  🛵 iFood:             http://$IP:$PORT/#/ifood"
+echo ""
+echo "  API docs:             http://$IP:$PORT/docs"
 echo ""
 
 # Instalar dependências Python se necessário
 if ! python3 -c "import fastapi" 2>/dev/null; then
     echo "📦 Instalando dependências Python..."
-    pip install fastapi uvicorn pydantic numpy pillow edge-tts --quiet
+    pip install -r requirements.txt --quiet
 fi
 
 exec python3 -m uvicorn main:app --host 0.0.0.0 --port "$PORT"
