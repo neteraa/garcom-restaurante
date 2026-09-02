@@ -142,9 +142,10 @@ export default function Kitchen() {
               <div className="kh-empty">Aguardando pedidos...</div>
             )}
             {preparing.map(o => (
-              <div key={o.id} className={`kh-card ${pulseId === o.id ? 'pulse' : ''}`}>
+              <div key={o.id} className={`kh-card ${pulseId === o.id ? 'pulse' : ''} ${o.table_id ? 'mesa-card' : ''}`}>
                 <div className="kh-card-head">
                   <span className="kh-senha">#{o.id.toUpperCase()}</span>
+                  {o.table_id && <span className="kh-mesa-badge">🪑 Mesa {o.table_id}</span>}
                   <span className="kh-time">{fmt(o.created_at)} · {elapsed(o.created_at)}</span>
                 </div>
                 <div className="kh-customer">{o.customer_id || 'Anônimo'}</div>
@@ -176,9 +177,10 @@ export default function Kitchen() {
               <div className="kh-empty">Nenhum pedido pronto</div>
             )}
             {ready.map(o => (
-              <div key={o.id} className="kh-card ready">
+              <div key={o.id} className={`kh-card ready ${o.table_id ? 'mesa-card' : ''}`}>
                 <div className="kh-card-head">
                   <span className="kh-senha ready">#{o.id.toUpperCase()}</span>
+                  {o.table_id && <span className="kh-mesa-badge">🪑 Mesa {o.table_id}</span>}
                   <span className="kh-time">Pronto há {elapsed(o.timeline?.ready)}</span>
                 </div>
                 <div className="kh-customer">{o.customer_id || 'Anônimo'}</div>
@@ -315,7 +317,16 @@ export default function Kitchen() {
         }
         .kh-card-head {
           display: flex; justify-content: space-between; align-items: center;
+          flex-wrap: wrap; gap: 4px;
           margin-bottom: 8px;
+        }
+        /* Pedidos de mesa — borda índigo */
+        .mesa-card { border-color: rgba(99,102,241,0.5) !important; }
+        .kh-mesa-badge {
+          font-size: 11px; font-weight: 900; letter-spacing: 1px;
+          background: rgba(99,102,241,0.2); color: #a5b4fc;
+          border: 1px solid rgba(99,102,241,0.5); border-radius: 999px;
+          padding: 2px 9px;
         }
         .kh-senha {
           font-size: 28px; font-weight: 900; color: #f97316;

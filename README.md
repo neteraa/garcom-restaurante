@@ -40,6 +40,8 @@ garcom-restaurante/
 | `http://localhost:5174/#/kitchen` | Cozinha           |
 | `http://localhost:5174/#/caixa`   | Caixa (financeiro)|
 | `http://localhost:5174/#/estoque` | Estoque 📦        |
+| `http://localhost:5174/#/mesas`   | Mesas & Comandas 🪑 |
+| `http://[IP]:5174/#/mesa/3`       | Cardápio mobile (QR da Mesa 3) 📱 |
 
 ---
 

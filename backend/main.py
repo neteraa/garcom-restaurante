@@ -788,6 +788,241 @@ def inventory_report():
     }
 
 
+def _menu_by_id(item_id: str):
+    for m in MENU:
+        if m["id"] == item_id:
+            return m
+    return None
+
+
+# ─────────────────────────────────────────────────────────────────
+# MESAS E COMANDAS — controle presencial de mesas
+# ─────────────────────────────────────────────────────────────────
+
+TABLES_FILE   = DATA_DIR / "tables.json"
+COMANDAS_FILE = DATA_DIR / "comandas.json"
+
+_DEFAULT_TABLES = [{"id": str(i), "name": f"Mesa {i}", "capacity": 4} for i in range(1, 13)]
+
+def _load_tables_cfg() -> dict:
+    if TABLES_FILE.exists():
+        with open(TABLES_FILE, encoding="utf-8") as f:
+            return json.load(f)
+    return {"tables": _DEFAULT_TABLES}
+
+def _load_comandas() -> dict:
+    if COMANDAS_FILE.exists():
+        with open(COMANDAS_FILE, encoding="utf-8") as f:
+            return json.load(f)
+    return {}
+
+tables_cfg: dict = _load_tables_cfg()
+comandas:   dict = _load_comandas()
+
+def save_tables_cfg():
+    with open(TABLES_FILE, "w", encoding="utf-8") as f:
+        json.dump(tables_cfg, f, indent=2, ensure_ascii=False)
+
+def save_comandas():
+    with open(COMANDAS_FILE, "w", encoding="utf-8") as f:
+        json.dump(comandas, f, indent=2, ensure_ascii=False)
+
+def _comanda_total(cmd: dict) -> float:
+    return round(sum(it["qty"] * it["price"] for it in cmd.get("items", [])), 2)
+
+async def _broadcast_table(table_id: str):
+    cmd = comandas.get(table_id, {})
+    msg = json.dumps({
+        "type":     "table_update",
+        "table_id": table_id,
+        "comanda":  {**cmd, "total": _comanda_total(cmd)},
+    })
+    for ws in list(kitchen_clients):
+        try:
+            await ws.send_text(msg)
+        except Exception:
+            kitchen_clients.discard(ws)
+
+
+@app.get("/api/tables")
+def list_tables():
+    result = []
+    for t in tables_cfg["tables"]:
+        tid = t["id"]
+        cmd = comandas.get(tid) if comandas.get(tid, {}).get("status") == "open" else None
+        result.append({
+            "id":            tid,
+            "name":          t["name"],
+            "capacity":      t.get("capacity", 4),
+            "status":        "open" if cmd else "free",
+            "customer_name": (cmd or {}).get("customer_name", ""),
+            "opened_at":     (cmd or {}).get("opened_at"),
+            "total":         _comanda_total(cmd) if cmd else 0.0,
+            "items_count":   len((cmd or {}).get("items", [])),
+        })
+    return {"tables": result}
+
+
+class TableOpenRequest(BaseModel):
+    table_id: str
+    customer_name: str = ""
+
+@app.post("/api/tables/open")
+async def open_table(req: TableOpenRequest):
+    tid = req.table_id
+    if comandas.get(tid, {}).get("status") == "open":
+        return {"ok": False, "error": "Mesa já aberta"}
+    comandas[tid] = {
+        "table_id":     tid,
+        "customer_name": req.customer_name.strip(),
+        "opened_at":    datetime.now().isoformat(),
+        "items":        [],
+        "status":       "open",
+    }
+    save_comandas()
+    await _broadcast_table(tid)
+    return {"ok": True, "comanda": comandas[tid]}
+
+
+@app.get("/api/tables/{table_id}")
+def get_table(table_id: str):
+    t_cfg = next((t for t in tables_cfg["tables"] if t["id"] == table_id), None)
+    if not t_cfg:
+        return {"ok": False, "error": "Mesa não encontrada"}
+    cmd = comandas.get(table_id)
+    is_open = bool(cmd and cmd.get("status") == "open")
+    return {
+        "ok":     True,
+        "table":  t_cfg,
+        "status": "open" if is_open else "free",
+        "comanda": ({**cmd, "total": _comanda_total(cmd)} if is_open else None),
+    }
+
+
+class TableAddItemRequest(BaseModel):
+    item_id: str
+    qty: int = 1
+    notes: str = ""
+
+@app.post("/api/tables/{table_id}/add")
+async def add_to_table(table_id: str, req: TableAddItemRequest):
+    # Auto-abre mesa se ainda não abriu
+    if comandas.get(table_id, {}).get("status") != "open":
+        comandas[table_id] = {
+            "table_id":     table_id,
+            "customer_name": "",
+            "opened_at":    datetime.now().isoformat(),
+            "items":        [],
+            "status":       "open",
+        }
+
+    m = _menu_by_id(req.item_id)
+    if not m:
+        return {"ok": False, "error": "Item não encontrado no cardápio"}
+
+    # Agrupa com item igual (mesmo id e mesma nota)
+    for it in comandas[table_id]["items"]:
+        if it["id"] == req.item_id and it.get("notes", "") == req.notes:
+            it["qty"] += req.qty
+            save_comandas()
+            await _broadcast_table(table_id)
+            return {"ok": True, "comanda": {**comandas[table_id], "total": _comanda_total(comandas[table_id])}}
+
+    comandas[table_id]["items"].append({
+        "id":       req.item_id,
+        "name":     m["name"],
+        "image":    m.get("image", ""),
+        "price":    m["price"],
+        "qty":      req.qty,
+        "notes":    req.notes,
+        "added_at": datetime.now().isoformat(),
+    })
+    save_comandas()
+    decrement_inventory([{"id": req.item_id, "qty": req.qty}])
+    await broadcast_inventory_alerts([{"id": req.item_id}])
+
+    # Envia pra cozinha como ordem de mesa
+    kitchen_order = {
+        "id":          str(uuid.uuid4())[:8],
+        "customer_id": f"Mesa {table_id}" + (f" — {comandas[table_id]['customer_name']}" if comandas[table_id].get("customer_name") else ""),
+        "table_id":    table_id,
+        "items":       [{"id": req.item_id, "name": m["name"], "qty": req.qty, "price": m["price"], "total": round(m["price"] * req.qty, 2)}],
+        "total":       round(m["price"] * req.qty, 2),
+        "notes":       req.notes,
+        "status":      "preparing",
+        "type":        "table",
+        "created_at":  datetime.now().isoformat(),
+    }
+    orders.append(kitchen_order)
+    save_orders()
+    await broadcast_new_order(kitchen_order)
+    await _broadcast_table(table_id)
+
+    return {"ok": True, "comanda": {**comandas[table_id], "total": _comanda_total(comandas[table_id])}}
+
+
+@app.delete("/api/tables/{table_id}/item/{item_idx}")
+async def remove_from_table(table_id: str, item_idx: int):
+    if comandas.get(table_id, {}).get("status") != "open":
+        return {"ok": False, "error": "Mesa não encontrada ou não está aberta"}
+    items = comandas[table_id].get("items", [])
+    if not (0 <= item_idx < len(items)):
+        return {"ok": False, "error": "Índice inválido"}
+    removed = items.pop(item_idx)
+    save_comandas()
+    await _broadcast_table(table_id)
+    return {"ok": True, "removed": removed}
+
+
+class TableCloseRequest(BaseModel):
+    table_id: str
+    payment_method: str = "dinheiro"  # dinheiro | pix | cartao | fiado
+
+@app.post("/api/tables/close")
+async def close_table(req: TableCloseRequest):
+    cmd = comandas.get(req.table_id, {})
+    if cmd.get("status") != "open":
+        return {"ok": False, "error": "Mesa não está aberta"}
+    total   = _comanda_total(cmd)
+    order_id = None
+    if cmd.get("items"):
+        close_order = {
+            "id":             str(uuid.uuid4())[:8],
+            "customer_id":    f"Mesa {req.table_id}" + (f" — {cmd.get('customer_name','')}" if cmd.get("customer_name") else ""),
+            "table_id":       req.table_id,
+            "items":          [{"id": it["id"], "name": it["name"], "qty": it["qty"], "price": it["price"], "total": it["qty"] * it["price"]} for it in cmd["items"]],
+            "total":          total,
+            "payment_method": req.payment_method,
+            "notes":          f"Fechamento Mesa {req.table_id}",
+            "status":         "delivered",
+            "type":           "table_close",
+            "created_at":     cmd["opened_at"],
+            "closed_at":      datetime.now().isoformat(),
+        }
+        orders.append(close_order)
+        save_orders()
+        order_id = close_order["id"]
+    # Libera a mesa
+    comandas[req.table_id] = {"status": "free", "last_closed": datetime.now().isoformat()}
+    save_comandas()
+    # Avisa cozinha que mesa fechou
+    msg = json.dumps({"type": "table_close", "table_id": req.table_id, "total": total, "payment_method": req.payment_method})
+    for ws in list(kitchen_clients):
+        try: await ws.send_text(msg)
+        except Exception: kitchen_clients.discard(ws)
+    return {"ok": True, "total": total, "order_id": order_id, "payment_method": req.payment_method}
+
+
+class TableConfigRequest(BaseModel):
+    tables: list  # [{"id":"1","name":"Mesa 1","capacity":4}, ...]
+
+@app.post("/api/tables/config")
+async def configure_tables(req: TableConfigRequest):
+    tables_cfg["tables"] = req.tables
+    save_tables_cfg()
+    return {"ok": True, "tables": tables_cfg["tables"]}
+
+
 class OrderStatusRequest(BaseModel):
     order_id: str
     status: str  # preparing, ready, delivered, canceled
@@ -999,13 +1234,6 @@ MENU (não invente, use item_id exato):
 
 def _build_menu_text():
     return "\n".join([f"- {m['id']}: {m['name']} — R$ {m['price']:.2f} ({m['category']})" for m in MENU])
-
-
-def _menu_by_id(item_id: str):
-    for m in MENU:
-        if m["id"] == item_id:
-            return m
-    return None
 
 
 def _cart_summary(cart: list) -> str:
