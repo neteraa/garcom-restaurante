@@ -258,10 +258,11 @@ export default function App() {
   }
 
   const listen = async (opts = {}) => {
-    const { maxDuration = 10000, silenceTimeout = 2000, initialTimeout = 7000, beep = true } = opts
+    const { maxDuration = 10000, silenceTimeout = 2000, initialTimeout = 8000, beep = true } = opts
     if (beep) await playBeep(660, 0.1)
-    // Extra buffer to avoid echo of Gabi's last audio
-    await new Promise(r => setTimeout(r, 500))
+    // Buffer para dissipação de eco do speaker físico — 1.5s garante que o áudio da Gabi
+    // não vaze pro microfone e dispare o filtro de eco (loop silencioso)
+    await new Promise(r => setTimeout(r, 1500))
     console.log('👂 LISTEN start')
 
     return new Promise((resolve) => {
@@ -779,31 +780,55 @@ export default function App() {
     return () => clearInterval(iv)
   }, [confirmedOrder, presenceDetected])
 
-  // ── AUTO-START: person standing in front for 3s → show "Toque" button (user gesture) ──
-  const [showTouchBtn, setShowTouchBtn] = useState(false)
+  // ── PERMISSÃO DE MICROFONE ────────────────────────────────────────────────
+  // 'checking' | 'granted' | 'prompt' | 'denied'
+  const [micStatus, setMicStatus] = useState('checking')
+  useEffect(() => {
+    navigator.permissions.query({ name: 'microphone' })
+      .then(result => {
+        setMicStatus(result.state)
+        result.onchange = () => setMicStatus(result.state)
+      })
+      .catch(() => setMicStatus('prompt'))
+  }, [])
+
+  // Solicita permissão de mic — chamado 1x pelo operador na configuração inicial
+  const requestMic = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      stream.getTracks().forEach(t => t.stop())
+      // Unlocks audio context também
+      if (!audioCtxRef.current) audioCtxRef.current = new (window.AudioContext || window.webkitAudioContext)()
+      if (audioCtxRef.current.state === 'suspended') await audioCtxRef.current.resume()
+      setMicStatus('granted')
+    } catch {
+      setMicStatus('denied')
+    }
+  }
+
+  // ── AUTO-START: câmera detecta presença por 3s → inicia sessão sozinho ──
+  // (funciona depois de permissão de mic concedida pelo operador)
+  const showTouchBtn = false  // totem é 100% touchless — sem botão
   useEffect(() => {
     const iv = setInterval(() => {
-      if (sessionActiveRef.current) { setShowTouchBtn(false); return }
-      if (confirmedOrder) { setShowTouchBtn(false); return }
-      if (!engagedSinceRef.current) { setShowTouchBtn(false); return }
+      if (sessionActiveRef.current) return
+      if (confirmedOrder) return
+      if (micStatus !== 'granted') return   // aguarda permissão antes de auto-iniciar
+      if (!engagedSinceRef.current) return
       const elapsed = Date.now() - engagedSinceRef.current
       if (elapsed >= 3000) {
-        setShowTouchBtn(true)  // mostra botão — NÃO auto-start (precisa de user gesture pro mic)
+        console.log('👁️ Auto-start: presença detectada por 3s')
+        engagedSinceRef.current = null
+        start()
       }
     }, 500)
     return () => clearInterval(iv)
-  }, [confirmedOrder])  // eslint-disable-line react-hooks/exhaustive-deps
+  }, [confirmedOrder, micStatus])  // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Fallback de texto quando voz falha
+  // Fallback de texto quando voz falha (acessível via teclado USB no totem)
   const [textFallback, setTextFallback] = useState(false)
   const [textInput, setTextInput] = useState('')
   const textResolveRef = useRef(null)
-
-  const listenOrText = async (opts = {}) => {
-    setTextFallback(false)
-    const result = await listen(opts)
-    return result
-  }
 
   const total = cart.reduce((a, c) => a + c.price * c.qty, 0)
   const grouped = menu.reduce((acc, it) => {
@@ -812,6 +837,45 @@ export default function App() {
 
   return (
     <div className="tv">
+
+      {/* ── OVERLAY: Permissão de microfone não concedida ─────────────────── */}
+      {(micStatus === 'prompt' || micStatus === 'denied') && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 9999,
+          background: 'linear-gradient(135deg,#0a0604,#1a0a04)',
+          display: 'flex', flexDirection: 'column', alignItems: 'center',
+          justifyContent: 'center', gap: 28, padding: 40,
+        }}>
+          <div style={{ fontSize: 72 }}>{micStatus === 'denied' ? '🔇' : '🎙️'}</div>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: 28, fontWeight: 900, color: '#f97316', letterSpacing: 2, marginBottom: 8 }}>
+              {micStatus === 'denied' ? 'MICROFONE BLOQUEADO' : 'ATIVAR MICROFONE'}
+            </div>
+            <div style={{ fontSize: 16, color: '#fbbf24', maxWidth: 480, lineHeight: 1.6 }}>
+              {micStatus === 'denied'
+                ? 'O acesso ao microfone foi bloqueado. Clique no ícone 🔒 na barra do navegador → Microfone → Permitir → recarregue a página.'
+                : 'O totem funciona 100% por voz. Clique abaixo para ativar o microfone. Esta ação é necessária apenas UMA VEZ.'}
+            </div>
+          </div>
+          {micStatus === 'prompt' && (
+            <button onClick={requestMic} style={{
+              background: 'linear-gradient(135deg,#f97316,#dc2626)',
+              border: 'none', borderRadius: 16, padding: '18px 48px',
+              color: '#fff', fontSize: 20, fontWeight: 900, cursor: 'pointer',
+              boxShadow: '0 0 40px rgba(249,115,22,0.5)',
+              letterSpacing: 1,
+            }}>
+              🎙️ ATIVAR MICROFONE
+            </button>
+          )}
+          <div style={{ fontSize: 12, color: '#444', marginTop: 8 }}>
+            {micStatus === 'prompt'
+              ? 'Após clicar, o navegador vai pedir permissão — clique em "Permitir". Isso não se repete mais.'
+              : 'Após liberar a permissão, recarregue a página (F5).'}
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <header className="tv-header">
         <div className="brand">
@@ -901,43 +965,26 @@ export default function App() {
           </div>
         )}
 
-        {/* Botão de toque — aparece quando câmera detecta presença por 3s */}
-        {showTouchBtn && !sessionActiveRef.current && !confirmedOrder && (
-          <div
-            className="trigger-hint touch-pulse"
-            style={{ cursor: 'pointer', animation: 'pulse-border 1s infinite' }}
-            onClick={async () => {
-              setShowTouchBtn(false)
-              try {
-                if (!audioCtxRef.current) audioCtxRef.current = new (window.AudioContext || window.webkitAudioContext)()
-                if (audioCtxRef.current.state === 'suspended') await audioCtxRef.current.resume()
-              } catch {}
-              start()
-            }}
-          >
-            <div className="th-mic" style={{ fontSize: 52, animation: 'bounce 0.7s infinite alternate' }}>👆</div>
+        {/* Hint de espera (idle mode, mic ok, sem presença) */}
+        {micStatus === 'granted' && !sessionActiveRef.current && !confirmedOrder && !isSpeaking && step === 'idle' && !presenceDetected && (
+          <div className="trigger-hint">
+            <div className="th-mic">🎙️</div>
             <div className="th-text">
-              <div className="th-line1" style={{ fontSize: 22, fontWeight: 900, color: '#f97316' }}>OI! TE VEI AQUI!</div>
-              <div className="th-line2" style={{ fontSize: 18, color: '#fbbf24' }}>TOQUE AQUI PARA COMEÇAR</div>
-              <div className="th-hint">ou diga: "oi Gabi" / "quero fazer um pedido"</div>
+              <div className="th-line1">Aproxime-se e fale comigo</div>
+              <div className="th-line2">"Oi Gabi" · "Quero fazer um pedido"</div>
+              <div className="th-hint">A câmera detecta sua presença e eu começo automaticamente</div>
             </div>
           </div>
         )}
 
-        {/* Trigger phrase hint (idle mode, sem presença detectada) */}
-        {!showTouchBtn && !sessionActiveRef.current && !confirmedOrder && !isSpeaking && step === 'idle' && (
-          <div className="trigger-hint" onClick={async () => {
-            try {
-              if (!audioCtxRef.current) audioCtxRef.current = new (window.AudioContext || window.webkitAudioContext)()
-              if (audioCtxRef.current.state === 'suspended') await audioCtxRef.current.resume()
-            } catch {}
-            start()
-          }}>
-            <div className="th-mic">🎙️</div>
+        {/* Presença detectada, aguardando 3s para iniciar */}
+        {micStatus === 'granted' && !sessionActiveRef.current && !confirmedOrder && presenceDetected && step === 'idle' && (
+          <div className="trigger-hint" style={{ animation: 'bob 0.8s ease-in-out infinite' }}>
+            <div className="th-mic" style={{ animation: 'micPulse 0.6s ease-in-out infinite' }}>👋</div>
             <div className="th-text">
-              <div className="th-line1">Diga em voz alta:</div>
-              <div className="th-line2">"Oi Gabi" ou "Quero pedir"</div>
-              <div className="th-hint">ou toque aqui para começar</div>
+              <div className="th-line1" style={{ color: '#f97316' }}>OI! TE VEI AQUI!</div>
+              <div className="th-line2">Iniciando em instantes...</div>
+              <div className="th-hint">fique quieto por um segundo enquanto eu preparo 😄</div>
             </div>
           </div>
         )}
