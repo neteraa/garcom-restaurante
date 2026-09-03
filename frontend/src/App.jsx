@@ -258,10 +258,10 @@ export default function App() {
   }
 
   const listen = async (opts = {}) => {
-    const { maxDuration = 8000, silenceTimeout = 1500, initialTimeout = 5000, beep = true } = opts
+    const { maxDuration = 10000, silenceTimeout = 2000, initialTimeout = 7000, beep = true } = opts
     if (beep) await playBeep(660, 0.1)
     // Extra buffer to avoid echo of Gabi's last audio
-    await new Promise(r => setTimeout(r, 400))
+    await new Promise(r => setTimeout(r, 500))
     console.log('👂 LISTEN start')
 
     return new Promise((resolve) => {
@@ -274,6 +274,7 @@ export default function App() {
       rec.interimResults = true
       rec.continuous = false
       let final = ''
+      let lastInterim = ''   // fallback se não houver resultado final
       let gotAnyResult = false
       let silenceTimer = null
       let maxTimer = null
@@ -282,14 +283,17 @@ export default function App() {
         clearTimeout(silenceTimer); clearTimeout(maxTimer); clearTimeout(initialTimer)
         try { rec.stop() } catch {}
         if (recRef.current === rec) recRef.current = null
+        // Usa interim como fallback se não houve resultado final
+        const result = (val || lastInterim).trim()
         // Filtro anti-eco: se o que "capturou" parece a própria Gabi, descarta
-        if (val && isGabiEcho(val)) {
-          console.log('🔕 LISTEN echo filtered:', val)
+        if (result && isGabiEcho(result)) {
+          console.log('🔕 LISTEN echo filtered:', result)
           window.__gabiEchoInListen = true
-          val = ''
+          resolve('')
+          return
         }
-        console.log('👂 LISTEN done:', JSON.stringify(val))
-        resolve(val)
+        console.log('👂 LISTEN done:', JSON.stringify(result))
+        resolve(result)
       }
       rec.onresult = (e) => {
         gotAnyResult = true
@@ -300,6 +304,7 @@ export default function App() {
           if (e.results[i].isFinal) final += t
           else interim += t
         }
+        if (interim) lastInterim = interim
         setSubtitle(final || interim)
         // Reset silence timer on any result
         clearTimeout(silenceTimer)
@@ -308,7 +313,8 @@ export default function App() {
       rec.onend = () => done(final.trim())
       rec.onerror = (e) => {
         console.warn('SpeechRecognition error:', e.error)
-        done('')
+        // Retorna interim se houve algo capturado antes do erro
+        done(final.trim())
       }
       setSubtitle('...')
       setStep('listening')

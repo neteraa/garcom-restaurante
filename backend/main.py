@@ -428,10 +428,28 @@ def list_customers():
 @app.post("/api/identify-face")
 async def identify_face(payload: dict):
     """Given a base64 frame, detect and identify face(s)."""
-    if not FACE_ENABLED:
-        return {"ok": False, "status": "disabled", "message": "Face recognition não disponível neste servidor."}
     if not payload.get("frame"):
         return {"ok": False, "error": "no frame"}
+
+    # detect_only mode: can detect presence but not recognize identity
+    if FACE_MODE == "detect_only":
+        if _yunet_detector is None:
+            return {"ok": False, "status": "disabled"}
+        import cv2 as _cv2, numpy as _np
+        img = decode_frame(payload["frame"])
+        arr = _np.array(img.convert("RGB"))
+        bgr = _cv2.cvtColor(arr, _cv2.COLOR_RGB2BGR)
+        h, w = bgr.shape[:2]
+        _yunet_detector.setInputSize((w, h))
+        _, faces = _yunet_detector.detect(bgr)
+        n = 0 if faces is None else len(faces)
+        if n == 0:
+            return {"ok": False, "status": "no_face", "n_faces": 0, "message": "Não estou vendo ninguém."}
+        return {"ok": False, "status": "unknown", "n_faces": n, "message": "Detecto presença mas não consigo reconhecer (modo básico)."}
+
+    if not FACE_ENABLED or face_detector is None:
+        return {"ok": False, "status": "disabled", "message": "Face recognition não disponível neste servidor."}
+
     img = decode_frame(payload["frame"])
     boxes, _ = face_detector.detect(img)
     if boxes is None or len(boxes) == 0:
@@ -1534,11 +1552,28 @@ async def chat(req: ChatRequest):
                 if candidate and candidate.lower() not in ["um", "uma", "o", "a", "de", "com", "que", "aqui", "bem"]:
                     forced_name = candidate
                     break
-        # Fallback: single-word input (short) — treat as name if in greeting phase
+        # Fallback: single-word input — treat as name if in greeting phase
         if not forced_name and sess["phase"] == "greeting":
             words = text_low.split()
-            if len(words) == 1 and words[0].isalpha() and len(words[0]) >= 3 and words[0] not in BLOCKED_NAMES:
-                forced_name = normalize_name(words[0])
+            # Palavras que nunca são nomes
+            NOT_A_NAME = {"oi", "olá", "ola", "boa", "bom", "boa", "tudo", "tô", "to",
+                          "bem", "aqui", "sim", "não", "nao", "ok", "ai", "aí",
+                          "quero", "queria", "pode", "vou", "um", "uma", "o", "a"}
+            if len(words) == 1:
+                w = words[0]
+                clean = re.sub(r"[^\w]", "", w)
+                if clean and clean.isalpha() and len(clean) >= 2 and clean not in NOT_A_NAME and clean not in BLOCKED_NAMES:
+                    forced_name = normalize_name(clean)
+            # Multi-word: "sou o João" / "é o João" — pega o último token alfabético
+            elif len(words) <= 5:
+                stop_words = {"sou", "o", "a", "os", "as", "meu", "nome", "é", "e", "me", "chamo", "pode", "chamar", "de"}
+                for w in reversed(words):
+                    clean = re.sub(r"[^\w]", "", w)
+                    if clean and clean.isalpha() and len(clean) >= 3 and clean not in stop_words and clean not in NOT_A_NAME and clean not in BLOCKED_NAMES:
+                        candidate = normalize_name(clean)
+                        if candidate:
+                            forced_name = candidate
+                            break
 
     # Pronoun resolution: "pode ser esse" / "quero esse" → add last mentioned items
     # Só faz sentido em phase=ordering. Em "confirming", "pode ser" = confirmação do pedido.
