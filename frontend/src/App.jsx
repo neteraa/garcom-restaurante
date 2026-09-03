@@ -508,9 +508,17 @@ export default function App() {
 
     // Conversation loop — robusto, sempre progride
     let doneConfirmed = false
-    let suggestedClose = false  // já sugeriu fechar 1x?
+    let suggestedClose = false
+    let echoRetries = 0           // proteção anti-loop de eco
+    const SESSION_HARD_LIMIT = Date.now() + 4 * 60 * 1000  // 4 min max
+
     for (let turn = 0; turn < 25 && sessionActiveRef.current; turn++) {
-      // Cardápio aberto → mais tempo pro cliente ler
+      // Hard timeout — evita sessão eterna
+      if (Date.now() > SESSION_HARD_LIMIT) {
+        await speak('Tempo esgotado! Tô aqui quando quiser.')
+        break
+      }
+
       const menuOpen = !!window.__gabiMenuJustOpened
       if (menuOpen) window.__gabiMenuJustOpened = false
       const userText = await listen({
@@ -519,12 +527,19 @@ export default function App() {
         maxDuration: menuOpen ? 25000 : 10000,
       })
 
-      // Echo filtrado → tenta de novo silencioso
+      // Echo filtrado → tenta de novo, mas com limite anti-loop
       if (!userText && window.__gabiEchoInListen) {
         window.__gabiEchoInListen = false
-        console.log('🔕 Echo filtered — silent retry')
+        echoRetries++
+        if (echoRetries >= 3) {
+          // eco persistente — dá uma pausa longa e zera contador
+          echoRetries = 0
+          await new Promise(r => setTimeout(r, 2000))
+        }
+        console.log('🔕 Echo filtered — silent retry', echoRetries)
         continue
       }
+      echoRetries = 0
 
       if (!userText) {
         missCount++
@@ -621,8 +636,30 @@ export default function App() {
       console.error('❌ Session error:', err)
     } finally {
       sessionActiveRef.current = false
-      console.log('🛑 Session ended')
-      // Wait longer to avoid echo from Gabi's own audio bleeding into mic
+      setTextFallback(false)
+      setTextInput('')
+      setStep('idle')
+      console.log('🛑 Session ended, doneConfirmed=', doneConfirmed)
+
+      if (!doneConfirmed) {
+        // Sessão encerrada sem pedido — limpa UI e reinicia idle
+        setCart([])
+        setPhase('greeting')
+        setCustomer(null)
+        setGabiText('')
+        // Reseta backend tb para não acumular estado
+        fetch('/api/session/reset', { method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ session_id: SESSION_ID }) }).catch(() => {})
+      }
+
+      // Permite que o botão de presença apareça de novo após 3s
+      setTimeout(() => {
+        setShowTouchBtn(false)
+        engagedSinceRef.current = presenceDetected ? Date.now() : null
+      }, 2000)
+
+      // Reativa background listener após eco se dissipar
       setTimeout(() => {
         if (!confirmedOrder && !sessionActiveRef.current) {
           startBackgroundListener()
