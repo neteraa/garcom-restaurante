@@ -1302,6 +1302,8 @@ FLUXO NATURAL:
 6. Se cliente disser "espera", "muda", "quero mais", "adiciona" durante confirmação: cancel_confirming e escuta o que ele quer
 
 REGRAS CRÍTICAS DE CARRINHO (NUNCA QUEBRE):
+- SEMPRE que cliente mencionar qualquer item do menu (ex: "quero X", "me dá X", "1 X", "dois X"), CHAME add_item IMEDIATAMENTE. Não peça confirmação, não hesite.
+- Se não achar o item_id exato, use o mais próximo. Nunca deixe de chamar add_item quando o cliente pedir comida.
 - NUNCA invente itens fora do MENU
 - Use item_id EXATO
 - SÓ CHAME add_item pros itens que o CLIENTE MENCIONOU NESTA MENSAGEM. NÃO re-adicione itens que já estão no carrinho.
@@ -1690,12 +1692,13 @@ async def chat(req: ChatRequest):
         messages.append({"role": "user", "content": req.text})
 
         resp = client.chat.completions.create(
-            model="gpt-4o-mini",
+            model="gpt-4o",
             messages=messages,
             tools=tools,
             tool_choice="auto",
-            temperature=0.5,
+            temperature=0.4,
             max_tokens=180,
+            parallel_tool_calls=False,
         )
 
         msg = resp.choices[0].message
