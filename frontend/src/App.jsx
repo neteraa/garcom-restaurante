@@ -528,11 +528,11 @@ export default function App() {
 
       if (!userText) {
         missCount++
-        // Se tem itens no carrinho E cliente ficou em silêncio, SUGERE FECHAR
         const hasItems = window.__gabiCurrentCartLength > 0
+
+        // Se tem itens no carrinho E cliente ficou em silêncio, SUGERE FECHAR
         if (hasItems && !suggestedClose) {
           suggestedClose = true
-          // Envia sinal de "só isso" pro backend pra ele resumir e ir pra confirming
           const reply = await chat('só isso')
           await speak(reply)
           continue
@@ -548,10 +548,41 @@ export default function App() {
           }
           continue
         }
+
         if (missCount === 1) {
-          await speak('Não peguei, pode falar de novo?')
+          // Ativa fallback de texto enquanto tenta ouvir de novo
+          setTextFallback(true)
+          await speak('Não peguei! Pode falar de novo ou digitar abaixo 👇')
+          // Corrida: voz OU texto — o que chegar primeiro
+          const textPromise = new Promise(resolve => { textResolveRef.current = resolve })
+          const voiceText = await listen({ beep: false, initialTimeout: 12000, maxDuration: 12000 })
+          if (voiceText) {
+            // Voz funcionou — descarta aguardo de texto
+            textResolveRef.current = null
+            setTextFallback(false)
+            missCount = 0
+            const reply = await chat(voiceText)
+            await speak(reply)
+            if (window.__gabiOrderConfirmed) { doneConfirmed = true; break }
+            continue
+          }
+          // Voz não veio — dá mais 5s pro usuário terminar de digitar
+          const typed = await Promise.race([
+            textPromise,
+            new Promise(r => setTimeout(() => r(''), 5000)),
+          ])
+          textResolveRef.current = null
+          setTextFallback(false)
+          if (typed) {
+            missCount = 0
+            const reply = await chat(typed)
+            await speak(reply)
+            if (window.__gabiOrderConfirmed) { doneConfirmed = true; break }
+            continue
+          }
         } else {
-          await speak('Falou! Tô aqui se precisar.')
+          setTextFallback(false)
+          await speak('Tô aqui se precisar, é só tocar!')
           break
         }
         continue
@@ -711,21 +742,31 @@ export default function App() {
     return () => clearInterval(iv)
   }, [confirmedOrder, presenceDetected])
 
-  // ── AUTO-START: person standing in front for 3s → start session automatically ──
+  // ── AUTO-START: person standing in front for 3s → show "Toque" button (user gesture) ──
+  const [showTouchBtn, setShowTouchBtn] = useState(false)
   useEffect(() => {
     const iv = setInterval(() => {
-      if (sessionActiveRef.current) return
-      if (confirmedOrder) return
-      if (!engagedSinceRef.current) return
+      if (sessionActiveRef.current) { setShowTouchBtn(false); return }
+      if (confirmedOrder) { setShowTouchBtn(false); return }
+      if (!engagedSinceRef.current) { setShowTouchBtn(false); return }
       const elapsed = Date.now() - engagedSinceRef.current
       if (elapsed >= 3000) {
-        console.log('👁️ Auto-start: face engaged for 3s')
-        engagedSinceRef.current = null  // reset so we don't trigger again immediately
-        start()
+        setShowTouchBtn(true)  // mostra botão — NÃO auto-start (precisa de user gesture pro mic)
       }
     }, 500)
     return () => clearInterval(iv)
   }, [confirmedOrder])  // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Fallback de texto quando voz falha
+  const [textFallback, setTextFallback] = useState(false)
+  const [textInput, setTextInput] = useState('')
+  const textResolveRef = useRef(null)
+
+  const listenOrText = async (opts = {}) => {
+    setTextFallback(false)
+    const result = await listen(opts)
+    return result
+  }
 
   const total = cart.reduce((a, c) => a + c.price * c.qty, 0)
   const grouped = menu.reduce((acc, it) => {
@@ -804,7 +845,7 @@ export default function App() {
             {step === 'listening' && <><Mic size={14} /> ESCUTANDO...</>}
             {step === 'thinking' && <>🧠 PENSANDO...</>}
             {step === 'speaking' && <><Volume2 size={14} /> FALANDO</>}
-            {step === 'idle' && !confirmedOrder && (presenceDetected ? '👁️ TE VEJ! COMEÇANDO...' : '💬 CHEGA PRA FALAR COMIGO')}
+            {step === 'idle' && !confirmedOrder && (showTouchBtn ? '👆 TOQUE PARA COMEÇAR!' : presenceDetected ? '👁️ TE VEI...' : '💬 CHEGA PRA FALAR COMIGO')}
             {phase === 'confirming' && step !== 'speaking' && <>⚠️ CONFIRME O PEDIDO</>}
             {phase === 'done' && orderId && <>✅ SENHA #{orderId}</>}
           </div>
@@ -823,22 +864,88 @@ export default function App() {
           </div>
         )}
 
-        {/* Trigger phrase hint (idle mode) */}
-        {!sessionActiveRef.current && !confirmedOrder && !isSpeaking && step === 'idle' && (
+        {/* Botão de toque — aparece quando câmera detecta presença por 3s */}
+        {showTouchBtn && !sessionActiveRef.current && !confirmedOrder && (
+          <div
+            className="trigger-hint touch-pulse"
+            style={{ cursor: 'pointer', animation: 'pulse-border 1s infinite' }}
+            onClick={async () => {
+              setShowTouchBtn(false)
+              try {
+                if (!audioCtxRef.current) audioCtxRef.current = new (window.AudioContext || window.webkitAudioContext)()
+                if (audioCtxRef.current.state === 'suspended') await audioCtxRef.current.resume()
+              } catch {}
+              start()
+            }}
+          >
+            <div className="th-mic" style={{ fontSize: 52, animation: 'bounce 0.7s infinite alternate' }}>👆</div>
+            <div className="th-text">
+              <div className="th-line1" style={{ fontSize: 22, fontWeight: 900, color: '#f97316' }}>OI! TE VEI AQUI!</div>
+              <div className="th-line2" style={{ fontSize: 18, color: '#fbbf24' }}>TOQUE AQUI PARA COMEÇAR</div>
+              <div className="th-hint">ou diga: "oi Gabi" / "quero fazer um pedido"</div>
+            </div>
+          </div>
+        )}
+
+        {/* Trigger phrase hint (idle mode, sem presença detectada) */}
+        {!showTouchBtn && !sessionActiveRef.current && !confirmedOrder && !isSpeaking && step === 'idle' && (
           <div className="trigger-hint" onClick={async () => {
             try {
               if (!audioCtxRef.current) audioCtxRef.current = new (window.AudioContext || window.webkitAudioContext)()
               if (audioCtxRef.current.state === 'suspended') await audioCtxRef.current.resume()
             } catch {}
-            setTriggerHint(false)
             start()
           }}>
-            <div className="th-mic">{presenceDetected ? '👋' : '🎙️'}</div>
+            <div className="th-mic">🎙️</div>
             <div className="th-text">
-              <div className="th-line1">{presenceDetected ? 'Oi! Já te vi aqui!' : 'Diga em voz alta:'}</div>
-              <div className="th-line2">{presenceDetected ? 'Começando em instantes...' : '"Quero fazer um pedido"'}</div>
-              <div className="th-hint">ou toque aqui pra começar agora</div>
+              <div className="th-line1">Diga em voz alta:</div>
+              <div className="th-line2">"Oi Gabi" ou "Quero pedir"</div>
+              <div className="th-hint">ou toque aqui para começar</div>
             </div>
+          </div>
+        )}
+
+        {/* Fallback de texto quando voz não funciona */}
+        {textFallback && sessionActiveRef.current && (
+          <div style={{
+            position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)',
+            zIndex: 999, display: 'flex', gap: 8, alignItems: 'center',
+            background: 'rgba(0,0,0,.85)', border: '2px solid #f97316',
+            borderRadius: 16, padding: '12px 16px', minWidth: 340,
+          }}>
+            <span style={{ fontSize: 20 }}>⌨️</span>
+            <input
+              autoFocus
+              type="text"
+              value={textInput}
+              onChange={e => setTextInput(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter' && textInput.trim()) {
+                  const val = textInput.trim()
+                  setTextInput('')
+                  setTextFallback(false)
+                  if (textResolveRef.current) { textResolveRef.current(val); textResolveRef.current = null }
+                }
+              }}
+              placeholder="Digite aqui seu nome ou pedido..."
+              style={{
+                flex: 1, background: 'transparent', border: 'none', outline: 'none',
+                color: '#fef3c7', fontSize: 16, fontFamily: 'inherit',
+              }}
+            />
+            <button
+              onClick={() => {
+                const val = textInput.trim()
+                if (!val) return
+                setTextInput('')
+                setTextFallback(false)
+                if (textResolveRef.current) { textResolveRef.current(val); textResolveRef.current = null }
+              }}
+              style={{
+                background: '#f97316', border: 'none', borderRadius: 8,
+                color: '#fff', fontWeight: 900, fontSize: 14, padding: '8px 14px', cursor: 'pointer',
+              }}
+            >Enviar</button>
           </div>
         )}
 
@@ -1104,6 +1211,12 @@ export default function App() {
           animation: micPulse 1.5s ease-in-out infinite;
         }
         @keyframes micPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.15); } }
+        @keyframes bounce { 0% { transform: translateY(0); } 100% { transform: translateY(-10px); } }
+        @keyframes pulse-border {
+          0%, 100% { box-shadow: 0 0 0 0 rgba(249,115,22,.7), 0 10px 40px rgba(249,115,22,0.4); border-color: #f97316; }
+          50% { box-shadow: 0 0 0 12px rgba(249,115,22,0), 0 10px 40px rgba(249,115,22,0.6); border-color: #fbbf24; }
+        }
+        .touch-pulse { animation: pulse-border 1s ease-in-out infinite !important; }
         .th-text { display: flex; flex-direction: column; gap: 3px; }
         .th-line1 { font-size: 12px; letter-spacing: 3px; color: #fbbf24; font-weight: 800; text-transform: uppercase; }
         .th-line2 { font-size: 22px; font-weight: 900; color: #fef3c7; }
